@@ -12,6 +12,10 @@ on:
       publish-update-metadata:
         type: boolean
         default: false
+      run-tests:
+        description: "Rodar os testes Rust (mais ~15-25 min)"
+        type: boolean
+        default: true
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -249,6 +253,7 @@ jobs:
           # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
           python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }}
           mv ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./rustdesk
+          mv ./rustdesk/rustdesk.exe ./rustdesk/JrTechDesk.exe
 
           # Download usbmmidd_v2.zip and extract it to ./rustdesk
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
@@ -286,7 +291,7 @@ jobs:
 
       - name: Run the Rust tests
         # x86_64 only: the tests are the same code on arm64, and that runner is the slow one.
-        if: ${{ !inputs.upload-artifact && matrix.job.arch == 'x86_64' }}
+        if: ${{ inputs.run-tests && matrix.job.arch == 'x86_64' }}
         shell: bash
         run: |
           # The build's own features, so the tests see the code that ships.
@@ -336,7 +341,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA == 'true'
         shell: powershell
         run: |
-          $reportedVersion = (& ".\rustdesk\rustdesk.exe" --version | Out-String).Trim()
+          $reportedVersion = (& ".\rustdesk\JrTechDesk.exe" --version | Out-String).Trim()
           if ($LASTEXITCODE -ne 0) {
             throw "rustdesk --version exited with $LASTEXITCODE"
           }
@@ -362,7 +367,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -e rustdesk.exe -l 11 -t "${{ matrix.job.target }}" --exclude-exe
+          python3 ./generate.py -f ../../rustdesk/ -e JrTechDesk.exe -l 11 -t "${{ matrix.job.target }}" --exclude-exe
           popd
           mkdir -p ./packer-template
           cp ./target/${{ matrix.job.target }}/release/rustdesk-portable-packer.exe ./packer-template/rustdesk-template-${{ matrix.job.arch }}.exe
@@ -382,7 +387,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/JrTechDesk.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
@@ -411,7 +416,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp -d ../../rustdesk --app-name JrTechDesk --manufacturer "Jrtech Solucoes e Sistemas de Ponto"
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
@@ -441,7 +446,7 @@ jobs:
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
-          mv ./rustdesk-msi-template/rustdesk.exe ./rustdesk-msi-template/RDAPPNAM.exe
+          mv ./rustdesk-msi-template/JrTechDesk.exe ./rustdesk-msi-template/RDAPPNAM.exe
           Set-Content -Path ./rustdesk-msi-template/custom.txt -Value 'placeholder' -NoNewline
           $assets = './rustdesk-msi-template/data/flutter_assets/assets'
           New-Item -ItemType Directory -Force -Path $assets | Out-Null

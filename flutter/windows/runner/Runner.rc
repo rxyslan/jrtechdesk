@@ -93,8 +93,8 @@ BEGIN
             VALUE "FileDescription", "JrTechDesk Acesso Remoto" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "rustdesk" "\0"
-            VALUE "LegalCopyright", "Copyright © 2026 Jrtech Solucoes e Sistemas de Ponto. Baseado no RustDesk (AGPL-3.0)." "\0"
-            VALUE "OriginalFilename", "rustdesk.exe" "\0"
+            VALUE "LegalCopyright", "Copyright © 2026 Purslane Tech Pte. Ltd. Modificado por Jrtech Solucoes e Sistemas de Ponto (AGPL-3.0)." "\0"
+            VALUE "OriginalFilename", "JrTechDesk.exe" "\0"
             VALUE "ProductName", "JrTechDesk" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

@@ -2526,10 +2526,11 @@ fn apply_jrtech_defaults() {
         buildin_settings.insert(s.replace("_", "-"), s);
     }
     let overrides = serde_json::json!({
-        "custom-rendezvous-server": "remoto.desbloqueiorepidclass.com.br",
-        "relay-server": "remoto.desbloqueiorepidclass.com.br",
+        "custom-rendezvous-server": config::RENDEZVOUS_SERVERS[0],
+        "relay-server": config::RENDEZVOUS_SERVERS[0],
         "api-server": "https://api.desbloqueiorepidclass.com.br",
-        "key": "O0H4N0AtZOU+Rnid9JNJ0qRKfeKUm10ITpK5vz0aZgc=",
+        "key": config::RS_PUB_KEY,
+        "allow-auto-update": "N",
         "hide-server-settings": "Y",
         "hide-proxy-settings": "Y",
         "hide-websocket-settings": "Y",
@@ -2644,6 +2645,10 @@ pub fn get_dst_align_rgba() -> usize {
 }
 
 pub fn read_custom_client(config: &str) {
+    if is_custom_client() {
+        log::info!("Ignoring custom client config: settings are embedded in this build");
+        return;
+    }
     let Ok(data) = decode64(config) else {
         log::error!("Failed to decode custom client config");
         return;
