@@ -109,7 +109,7 @@ jobs:
         shell: bash
         run: |
           sed -i "s/^const String kJrTechTheme = 'padrao';/const String kJrTechTheme = '${{ inputs.tema }}';/" flutter/lib/jrtech_brand.dart
-          grep -n "kJrTechTheme =" flutter/lib/jrtech_brand.dart
+          grep -q "kJrTechTheme = '${{ inputs.tema }}';" flutter/lib/jrtech_brand.dart
 
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@49819abfb41bd9b44fb781159c033dba90353a7c # v1.0

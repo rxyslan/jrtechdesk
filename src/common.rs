@@ -2538,7 +2538,7 @@ fn apply_jrtech_defaults() {
     });
     if suporte {
         overrides["theme"] = "dark".into();
-        overrides["disable-audio"] = "Y".into();
+        overrides["enable-audio"] = "N".into();
         overrides["register-device"] = "N".into();
     }
     read_custom_client_advanced_settings(
