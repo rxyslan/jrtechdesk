@@ -2525,7 +2525,8 @@ fn apply_jrtech_defaults() {
     for s in keys::KEYS_BUILDIN_SETTINGS {
         buildin_settings.insert(s.replace("_", "-"), s);
     }
-    let overrides = serde_json::json!({
+    let suporte = option_env!("JRTECH_MODO") == Some("suporte");
+    let mut overrides = serde_json::json!({
         "custom-rendezvous-server": config::RENDEZVOUS_SERVERS[0],
         "relay-server": config::RENDEZVOUS_SERVERS[0],
         "api-server": "https://api.desbloqueiorepidclass.com.br",
@@ -2535,6 +2536,11 @@ fn apply_jrtech_defaults() {
         "hide-proxy-settings": "Y",
         "hide-websocket-settings": "Y",
     });
+    if suporte {
+        overrides["theme"] = "dark".into();
+        overrides["disable-audio"] = "Y".into();
+        overrides["register-device"] = "N".into();
+    }
     read_custom_client_advanced_settings(
         overrides,
         &map_display_settings,
@@ -2543,6 +2549,19 @@ fn apply_jrtech_defaults() {
         &buildin_settings,
         true,
     );
+    if suporte {
+        let mut hard = config::HARD_SETTINGS.write().unwrap();
+        hard.insert("conn-type".to_owned(), "incoming".to_owned());
+        for k in [
+            "disable-installation",
+            "disable-settings",
+            "disable-ab",
+            "disable-account",
+            "disable-tcp-listen",
+        ] {
+            hard.insert(k.to_owned(), "Y".to_owned());
+        }
+    }
 }
 
 pub fn load_custom_client() {
