@@ -2506,7 +2506,46 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+/// JrTechDesk: configuração embutida em tempo de compilação (zero-config + UI travada).
+fn apply_jrtech_defaults() {
+    *config::APP_NAME.write().unwrap() = "JrTechDesk".to_owned();
+    let mut map_display_settings = HashMap::new();
+    for s in keys::KEYS_DISPLAY_SETTINGS {
+        map_display_settings.insert(s.replace("_", "-"), s);
+    }
+    let mut map_local_settings = HashMap::new();
+    for s in keys::KEYS_LOCAL_SETTINGS {
+        map_local_settings.insert(s.replace("_", "-"), s);
+    }
+    let mut map_settings = HashMap::new();
+    for s in keys::KEYS_SETTINGS {
+        map_settings.insert(s.replace("_", "-"), s);
+    }
+    let mut buildin_settings = HashMap::new();
+    for s in keys::KEYS_BUILDIN_SETTINGS {
+        buildin_settings.insert(s.replace("_", "-"), s);
+    }
+    let overrides = serde_json::json!({
+        "custom-rendezvous-server": "remoto.desbloqueiorepidclass.com.br",
+        "relay-server": "remoto.desbloqueiorepidclass.com.br",
+        "api-server": "https://api.desbloqueiorepidclass.com.br",
+        "key": "O0H4N0AtZOU+Rnid9JNJ0qRKfeKUm10ITpK5vz0aZgc=",
+        "hide-server-settings": "Y",
+        "hide-proxy-settings": "Y",
+        "hide-websocket-settings": "Y",
+    });
+    read_custom_client_advanced_settings(
+        overrides,
+        &map_display_settings,
+        &map_local_settings,
+        &map_settings,
+        &buildin_settings,
+        true,
+    );
+}
+
 pub fn load_custom_client() {
+    apply_jrtech_defaults();
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
