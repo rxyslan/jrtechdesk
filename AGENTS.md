@@ -22,8 +22,8 @@
 - **Audio/Video Services**: Real-time audio/video streaming in `src/server/`
 - **File Transfer**: Secure file transfer implementation in `libs/base/src/fs.rs`
 
-`hbb_common` is a git submodule shared with the server, so changing it costs a
-round-trip. Put client-only code in `libs/base` instead; it is a normal
+`hbb_common` is vendored in this fork (copied at `fae47e0`, no submodule), so
+upstream fixes to it must be merged by hand. Put client-only code in `libs/base` instead; it is a normal
 workspace member. `base::config::keys` re-exports the handful of keys
 `hbb_common` still reads, so callers get the whole set from that one path.
 
