@@ -12,6 +12,16 @@ on:
       publish-update-metadata:
         type: boolean
         default: false
+      tema:
+        description: "Tema visual (padrao = azul RustDesk, siin = identidade JR Tech/SIIN)"
+        type: choice
+        options: [siin, padrao]
+        default: siin
+      modo:
+        description: "completo = acessa e é acessado; suporte = só recebe acesso (estilo ControliDSupport)"
+        type: choice
+        options: [completo, suporte]
+        default: completo
       run-tests:
         description: "Rodar os testes Rust (mais ~15-25 min)"
         type: boolean
@@ -84,6 +94,8 @@ jobs:
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
+    env:
+      JRTECH_MODO: ${{ inputs.modo }}
     strategy:
       fail-fast: false
       matrix:
@@ -110,6 +122,12 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Aplicar tema JrTechDesk
+        shell: bash
+        run: |
+          sed -i "s/^const String kJrTechTheme = 'padrao';/const String kJrTechTheme = '${{ inputs.tema }}';/" flutter/lib/jrtech_brand.dart
+          grep -q "kJrTechTheme = '${{ inputs.tema }}';" flutter/lib/jrtech_brand.dart
 
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -385,7 +403,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jrtechdesk-installer-${{ matrix.job.arch }}
+          name: jrtechdesk-installer-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}
           path: ./SignOutput/*.exe
           if-no-files-found: error
 
@@ -402,7 +420,7 @@ jobs:
         # Builds the MSI for the matrix arch. res/msi (WiX v4 + native CustomActions) carries
         # both x64 and ARM64 platform configs; WcaUtil/DUtil ship arm64 libs. msbuild platform
         # is x64 / ARM64; the produced Package.msi is globbed since its bin/<platform>/ dir varies.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.modo != 'suporte'
         run: |
           pushd ./res/msi
           python preprocess.py --arp -d ../../rustdesk --app-name JrTechDesk --manufacturer "Jrtech Solucoes e Sistemas de Ponto"
@@ -431,7 +449,7 @@ jobs:
         # Building the arm64 template on the native arm64 runner makes the ARM
         # package available: the build agents are x64 and cannot run
         # preprocess.py against an ARM exe.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.modo != 'suporte'
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
@@ -455,7 +473,7 @@ jobs:
           rm -r -fo ./rustdesk-msi-template
 
       - name: Upload unsigned msi template
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.modo != 'suporte'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
@@ -476,7 +494,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload signed Windows Flutter MSI
-        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA == 'true' && env.SIGN_BASE_URL != '-2'
+        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA == 'true' && env.SIGN_BASE_URL != '-2' && inputs.modo != 'suporte'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-flutter-${{ matrix.job.arch }}-msi

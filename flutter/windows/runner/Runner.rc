@@ -89,6 +89,7 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            VALUE "Comments", "Desenvolvido por Rayslan" "\0"
             VALUE "CompanyName", "Jrtech Solucoes e Sistemas de Ponto" "\0"
             VALUE "FileDescription", "JrTechDesk Acesso Remoto" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
