@@ -2538,7 +2538,8 @@ fn apply_jrtech_defaults() {
     });
     if suporte {
         overrides["theme"] = "dark".into();
-        overrides["enable-audio"] = "N".into();
+        // Técnico com todas as permissões; vence qualquer access-mode salvo.
+        overrides["access-mode"] = "full".into();
         overrides["register-device"] = "N".into();
     }
     read_custom_client_advanced_settings(
