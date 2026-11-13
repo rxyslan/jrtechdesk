@@ -2651,12 +2651,6 @@ class _AboutState extends State<_About> {
                             kJrTechCredit,
                             style: TextStyle(color: Colors.white),
                           ),
-                          Text(
-                            translate('Slogan_tip'),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white),
-                          )
                         ],
                       ),
                     ),
