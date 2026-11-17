@@ -2535,6 +2535,9 @@ fn apply_jrtech_defaults() {
         "hide-server-settings": "Y",
         "hide-proxy-settings": "Y",
         "hide-websocket-settings": "Y",
+        // "Desenvolvido por RustDesk" no painel esquerdo; o crédito e a licença
+        // do RustDesk continuam na tela Sobre.
+        "hide-powered-by-me": "Y",
     });
     if suporte {
         overrides["theme"] = "dark".into();
