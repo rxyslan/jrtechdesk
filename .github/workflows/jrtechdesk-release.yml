@@ -73,8 +73,9 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$VERSAO_JR" =~ ^[1-9][0-9]{0,5}$ ]] || { echo "::error::versao-jr precisa ser 1 ou mais"; exit 1; }
-          base="$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' Cargo.toml | head -1)"
+          base="$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p;T;q' Cargo.toml)"
           [ -n "$base" ] || { echo "::error::versão não encontrada no Cargo.toml"; exit 1; }
+          echo "BASE=${base}" >> "$GITHUB_ENV"
           echo "VERSAO=${base}-jr${VERSAO_JR}" >> "$GITHUB_ENV"
           echo "TAG=v${base}-jr${VERSAO_JR}" >> "$GITHUB_ENV"
           echo "Versão: ${base}-jr${VERSAO_JR}"
@@ -105,6 +106,14 @@ jobs:
             echo "::error::as quatro builds precisam ser do mesmo commit ($s1 $s2 $s3 $s4)"; exit 1
           fi
           echo "COMMIT=$s1" >> "$GITHUB_ENV"
+          # A tag sai do Cargo.toml deste ref; precisa ser a mesma versão compilada nas builds,
+          # senão o app instalado veria a release sempre como mais nova e reinstalaria sem parar.
+          gh api -H 'Accept: application/vnd.github.raw' \
+            "repos/${GITHUB_REPOSITORY}/contents/Cargo.toml?ref=${s1}" > Cargo-builds.toml
+          base_commit="$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p;T;q' Cargo-builds.toml)"
+          if [ "$base_commit" != "$BASE" ]; then
+            echo "::error::as builds são da versão '$base_commit', mas este ref está em '$BASE'; rode a release a partir do commit das builds"; exit 1
+          fi
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::a release $TAG já existe; use outro número de versão"; exit 1
           fi

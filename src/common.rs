@@ -1195,6 +1195,11 @@ fn clear_software_update_url() {
 
 // Resposta de https://api.github.com/repos/<dono>/<repo>/releases/latest.
 fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
+    // Build de teste (versao-jr=0): nunca oferece nem instala atualização.
+    if jrtech_release() == 0 {
+        clear_software_update_url();
+        return Ok(());
+    }
     let resp: Value = serde_json::from_slice(&bytes)?;
     if resp["draft"].as_bool().unwrap_or(false) || resp["prerelease"].as_bool().unwrap_or(false) {
         clear_software_update_url();
