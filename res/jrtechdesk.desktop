@@ -1,0 +1,19 @@
+[Desktop Entry]
+Name=JrTechDesk
+GenericName=Acesso remoto
+Comment=Acesso remoto JR Tech
+Exec=jrtechdesk %u
+Icon=jrtechdesk
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Network;RemoteAccess;GTK;
+Keywords=internet;linux;dart;rust;remote-control;p2p;teamviewer;anydesk;suporte;rdp;remote-desktop;vnc;
+Actions=new-window;
+StartupWMClass=jrtechdesk
+
+X-Desktop-File-Install-Version=0.23
+
+[Desktop Action new-window]
+Name=Abrir nova janela
+Exec=jrtechdesk %u

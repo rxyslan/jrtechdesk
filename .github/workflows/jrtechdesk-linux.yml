@@ -17,6 +17,11 @@ on:
         type: choice
         options: [siin, padrao]
         default: siin
+      modo:
+        description: "completo = acessa e é acessado; suporte = só recebe acesso (estilo ControliDSupport)"
+        type: choice
+        options: [completo, suporte]
+        default: completo
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -271,6 +276,9 @@ jobs:
               export JOBS=""
             fi
             echo $JOBS
+            # option_env! lê o modo na compilação; precisa existir dentro do contêiner.
+            export JRTECH_MODO="${{ inputs.modo }}"
+            echo "JRTECH_MODO=$JRTECH_MODO"
             cargo build --locked --lib $JOBS --features hwcodec,flutter,unix-file-copy-paste --release
             rm -rf target/release/deps target/release/build
             rm -rf ~/.cargo
@@ -329,16 +337,17 @@ jobs:
             export CARGO_INCREMENTAL=0
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
-            for name in rustdesk*??.deb; do
-              mv "$name" "${name%%.deb}-${{ matrix.job.arch }}.deb"
+            for name in jrtechdesk*??.deb; do
+              mv "$name" "${name%%.deb}-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}.deb"
             done
 
       - name: Upload deb
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: jrtechdesk-deb-${{ matrix.job.arch }}
-          path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
+          name: jrtechdesk-deb-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}
+          path: jrtechdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}.deb
+          if-no-files-found: error
 
       # only x86_64 for arch since we can not find newest arm64 docker image to build
       # old arch image does not make sense for arch since it is "arch" which always update to date
@@ -363,6 +372,6 @@ jobs:
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jrtechdesk-archlinux-x86_64
-          path: res/rustdesk-${{ env.VERSION }}*.zst
+          name: jrtechdesk-archlinux-x86_64-${{ inputs.modo }}-${{ inputs.tema }}
+          path: res/jrtechdesk-${{ env.VERSION }}*.zst
           if-no-files-found: error
