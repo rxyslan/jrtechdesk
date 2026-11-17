@@ -360,17 +360,15 @@ jobs:
             sed -i "s/x86_64/aarch64/g" ./res/PKGBUILD
           fi
 
+      # A action roda `eval $INPUT_SCRIPTS` sem aspas: tudo vira uma linha só. Por isso o
+      # script fica numa linha e sem comentário (um # comentaria o resto).
       - name: Build archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: rustdesk-org/arch-makepkg-action@04200739ed1d0bf6f2188b6736b26a767c57a7f9 # no release tag; commit 2026-05-26
         with:
           packages:
           scripts: |
-            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
-            # Põe modo e tema no nome, como no deb, para os dois pacotes não terem o mesmo nome.
-            for f in jrtechdesk-*.pkg.tar.zst; do
-              mv "$f" "${f%.pkg.tar.zst}-${{ inputs.modo }}-${{ inputs.tema }}.pkg.tar.zst"
-            done
+            cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f && for f in jrtechdesk-*.pkg.tar.zst; do mv "$f" "${f%.pkg.tar.zst}-${{ inputs.modo }}-${{ inputs.tema }}.pkg.tar.zst"; done
 
       - name: Upload archlinux package
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
