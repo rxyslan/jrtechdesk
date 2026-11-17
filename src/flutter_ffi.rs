@@ -2975,12 +2975,23 @@ pub fn main_set_common(_key: String, _value: String) {
                 "New version file is downloaded, update begin, {:?}",
                 new_version_file_str
             );
+            // JrTechDesk suporte é portátil: troca o próprio .exe em vez de instalar.
             #[cfg(target_os = "windows")]
-            let update_res = crate::platform::update_to_verified(
-                new_version_file_str,
-                &artifact.sha256,
-                artifact.size,
-            );
+            let portable = crate::common::jrtech_suporte() && !crate::platform::is_installed();
+            #[cfg(target_os = "windows")]
+            let update_res = if portable {
+                crate::platform::update_portable_to_verified(
+                    new_version_file_str,
+                    &artifact.sha256,
+                    artifact.size,
+                )
+            } else {
+                crate::platform::update_to_verified(
+                    new_version_file_str,
+                    &artifact.sha256,
+                    artifact.size,
+                )
+            };
             #[cfg(target_os = "macos")]
             let update_res = crate::platform::macos::update_to_verified_dmg(
                 new_version_file_str,
@@ -2991,7 +3002,17 @@ pub fn main_set_common(_key: String, _value: String) {
                 crate::updater::remove_update_file(&new_version_file);
             }
             match update_res {
-                Ok(_) => log::info!("Update process is launched successfully!"),
+                Ok(_) => {
+                    log::info!("Update process is launched successfully!");
+                    // A versão nova já foi aberta e espera esta fechar.
+                    #[cfg(target_os = "windows")]
+                    if portable {
+                        std::thread::spawn(|| {
+                            std::thread::sleep(std::time::Duration::from_millis(500));
+                            crate::platform::quit_gui();
+                        });
+                    }
+                }
                 Err(e) => {
                     let error = format!("Failed to update to new version, {}", e);
                     log::error!("{}", error);

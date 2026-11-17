@@ -15,6 +15,15 @@ const UPDATE_SIDECAR_HTTP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const UPDATE_METADATA_SIDECAR_MAX_BYTES: u64 = 1024 * 1024;
 /// Publicado junto com a release, assinado com a nossa chave (ver `update_metadata.rs`).
 pub(crate) const UPDATE_METADATA_FILE_NAME: &str = "jrtechdesk-update.json";
+pub(crate) const SUPORTE_UPDATE_METADATA_FILE_NAME: &str = "jrtechdesk-suporte-update.json";
+
+fn update_metadata_file_name() -> &'static str {
+    if crate::common::jrtech_suporte() {
+        SUPORTE_UPDATE_METADATA_FILE_NAME
+    } else {
+        UPDATE_METADATA_FILE_NAME
+    }
+}
 
 lazy_static::lazy_static! {
     static ref VERIFIED_UPDATE_ARTIFACT: Mutex<Option<VerifiedUpdateArtifact>> = Mutex::new(None);
@@ -113,7 +122,7 @@ pub(super) fn verified_update_artifact_from_release_page_url(
         crate::common::JRTECH_UPDATE_OWNER,
         crate::common::JRTECH_UPDATE_REPO
     );
-    let metadata_url = format!("{expected_artifact_url_prefix}{UPDATE_METADATA_FILE_NAME}");
+    let metadata_url = format!("{expected_artifact_url_prefix}{}", update_metadata_file_name());
     let signature_url = format!("{metadata_url}.sig");
     let metadata_bytes = fetch_update_sidecar_bytes(&metadata_url)?;
     let signature_bytes = fetch_update_sidecar_bytes(&signature_url)?;

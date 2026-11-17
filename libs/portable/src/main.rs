@@ -22,6 +22,12 @@ const APP_PREFIX: &str = "rustdesk";
 #[cfg(windows)]
 const VERIFIED_UPDATE_FILE_PREFIX: &str = "rustdesk-verified-";
 const APPNAME_RUNTIME_ENV_KEY: &str = "RUSTDESK_APPNAME";
+// JrTechDesk: caminho completo deste .exe, para o app portátil (suporte) se trocar
+// pela versão nova ao atualizar. Manter igual em src/platform/windows/verified_update.rs.
+const JRTECH_PORTABLE_EXE_ENV_KEY: &str = "JRTECH_PORTABLE_EXE";
+// JrTechDesk: PID da versão antiga, que ainda está fechando quando a nova é aberta.
+#[cfg(windows)]
+const JRTECH_UPDATE_WAIT_PID_ENV_KEY: &str = "JRTECH_UPDATE_WAIT_PID";
 #[cfg(windows)]
 const SET_FOREGROUND_WINDOW_ENV_KEY: &str = "SET_FOREGROUND_WINDOW";
 
@@ -247,6 +253,9 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
     }
 
     cmd.env(APPNAME_RUNTIME_ENV_KEY, exe_name);
+    cmd.env(JRTECH_PORTABLE_EXE_ENV_KEY, &exe);
+    #[cfg(windows)]
+    cmd.env_remove(JRTECH_UPDATE_WAIT_PID_ENV_KEY);
     if use_null_stdio() {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -288,6 +297,11 @@ fn main() -> Result<(), String> {
     let quick_support = args.is_empty() && win::is_quick_support_exe(&arg_exe);
     #[cfg(not(windows))]
     let quick_support = false;
+
+    // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
+    // antes de extrair, senão os arquivos dela ainda estão em uso.
+    #[cfg(windows)]
+    win::wait_for_previous_instance();
 
     #[cfg(windows)]
     if args.first().is_some_and(|arg| arg == "--update") {
@@ -348,6 +362,34 @@ mod win {
             )
         }
         .map_err(std::io::Error::other)
+    }
+
+    pub(super) fn wait_for_previous_instance() {
+        let Some(pid) = std::env::var(super::JRTECH_UPDATE_WAIT_PID_ENV_KEY)
+            .ok()
+            .and_then(|pid| pid.parse::<u32>().ok())
+        else {
+            return;
+        };
+        unsafe {
+            use winapi::um::{
+                handleapi::CloseHandle, processthreadsapi::OpenProcess,
+                synchapi::WaitForSingleObject, winnt::SYNCHRONIZE,
+            };
+            let process = OpenProcess(SYNCHRONIZE, 0, pid);
+            if !process.is_null() {
+                WaitForSingleObject(process, 60_000);
+                CloseHandle(process);
+            }
+        }
+        // O serviço portátil fecha logo depois do processo principal.
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        // Cópia antiga que a atualização deixou ao lado deste .exe.
+        if let Ok(exe) = std::env::current_exe() {
+            let mut old = exe.into_os_string();
+            old.push(".old");
+            let _ = fs::remove_file(old);
+        }
     }
 
     pub(super) fn copy_runtime_broker(dir: &Path) {

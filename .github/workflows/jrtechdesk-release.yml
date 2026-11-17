@@ -6,9 +6,10 @@ name: JrTechDesk Release
 #      Linux completo/suporte, todas do mesmo commit e com a mesma versao-jr) numa release
 #      em RASCUNHO. Ninguém vê ainda.
 #   2. (opcional) assinar os .exe com o certificado de código e substituir no rascunho.
-#   3. publicar: gera o jrtechdesk-update.json assinado com a nossa chave (segredo
-#      JRTECH_UPDATE_ED25519_SEED) a partir dos arquivos que estão no rascunho e publica.
-#      A partir daí os JrTechDesk instalados veem a versão nova.
+#   3. publicar: gera o jrtechdesk-update.json (completo) e o jrtechdesk-suporte-update.json
+#      (suporte), assinados com a nossa chave (segredo JRTECH_UPDATE_ED25519_SEED), a partir
+#      dos arquivos que estão no rascunho, e publica. A partir daí os JrTechDesk avisam
+#      que há versão nova.
 #
 # Os nomes dos arquivos são fixos, então estes links sempre levam à última versão:
 #   https://github.com/rxyslan/jrtechdesk/releases/latest/download/JrTechDesk-suporte.exe
@@ -190,8 +191,9 @@ jobs:
           gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D out \
             -p 'JrTechDesk-*.exe' -p 'jrtechdesk-*.deb' -p 'jrtechdesk-*.pkg.tar.zst'
           ls -la out
-          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qx 'jrtechdesk-update.json'; then
-            echo "::error::$TAG já tem jrtechdesk-update.json; use outro número de versão"; exit 1
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' \
+              | grep -Eqx 'jrtechdesk(-suporte)?-update\.json'; then
+            echo "::error::$TAG já tem arquivo de atualização; use outro número de versão"; exit 1
           fi
 
       - name: Assinar o arquivo de atualização
@@ -202,23 +204,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Só o Windows instalado (completo) se atualiza sozinho; o suporte é baixado a cada uso.
-          python res/update/generate_update_metadata.py sign \
-            --artifact windows x86_64 exe ./out/JrTechDesk-completo.exe \
-            --version "$VERSAO" --release-id "$TAG" \
-            --package-id jrtechdesk \
-            --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download" \
-            --published-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --metadata-out ./out/jrtechdesk-update.json \
-            --signature-out ./out/jrtechdesk-update.json.sig
-          python res/update/generate_update_metadata.py verify \
-            --metadata ./out/jrtechdesk-update.json \
-            --signature ./out/jrtechdesk-update.json.sig \
-            --artifact ./out/JrTechDesk-completo.exe \
-            --version "$VERSAO" --release-id "$TAG" \
-            --package-id jrtechdesk \
-            --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download"
-          cat ./out/jrtechdesk-update.json; echo
+          # Um arquivo por modo, com package_id próprio: o completo instalado só aceita o
+          # completo, e o suporte portátil só aceita o suporte.
+          assinar() { # package-id exe metadata
+            python res/update/generate_update_metadata.py sign \
+              --artifact windows x86_64 exe "./out/$2" \
+              --version "$VERSAO" --release-id "$TAG" \
+              --package-id "$1" \
+              --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download" \
+              --published-at "$PUBLISHED_AT" \
+              --metadata-out "./out/$3" \
+              --signature-out "./out/$3.sig"
+            python res/update/generate_update_metadata.py verify \
+              --metadata "./out/$3" \
+              --signature "./out/$3.sig" \
+              --artifact "./out/$2" \
+              --version "$VERSAO" --release-id "$TAG" \
+              --package-id "$1" \
+              --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download"
+            cat "./out/$3"; echo
+          }
+          PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          assinar jrtechdesk JrTechDesk-completo.exe jrtechdesk-update.json
+          assinar jrtechdesk-suporte JrTechDesk-suporte.exe jrtechdesk-suporte-update.json
 
       - name: Publicar
         if: inputs.etapa == 'publicar'
@@ -228,6 +236,8 @@ jobs:
           # Os .exe podem ter sido trocados pelos assinados: refaz a lista de SHA-256.
           (cd out && sha256sum JrTechDesk-*.exe jrtechdesk-*.deb jrtechdesk-*.pkg.tar.zst > SHA256SUMS.txt)
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber \
-            out/jrtechdesk-update.json out/jrtechdesk-update.json.sig out/SHA256SUMS.txt
+            out/jrtechdesk-update.json out/jrtechdesk-update.json.sig \
+            out/jrtechdesk-suporte-update.json out/jrtechdesk-suporte-update.json.sig \
+            out/SHA256SUMS.txt
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
           echo "Publicada: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"

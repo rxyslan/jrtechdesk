@@ -1073,6 +1073,11 @@ pub fn jrtech_release() -> u32 {
 }
 
 /// Versão completa do JrTechDesk, por exemplo `1.5.3-jr2`.
+/// Build do modo suporte (JRTECH_MODO=suporte): só recebe conexões e roda sem instalar.
+pub fn jrtech_suporte() -> bool {
+    option_env!("JRTECH_MODO") == Some("suporte")
+}
+
 pub fn jrtech_version() -> String {
     format!("{}-jr{}", crate::VERSION, jrtech_release())
 }
@@ -1195,9 +1200,8 @@ fn clear_software_update_url() {
 
 // Resposta de https://api.github.com/repos/<dono>/<repo>/releases/latest.
 fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
-    // Build de teste (versao-jr=0) e modo suporte (portátil, baixado a cada
-    // atendimento) não avisam nem instalam atualização.
-    if jrtech_release() == 0 || option_env!("JRTECH_MODO") == Some("suporte") {
+    // Build de teste (versao-jr=0): não avisa nem instala atualização.
+    if jrtech_release() == 0 {
         clear_software_update_url();
         return Ok(());
     }
@@ -2604,7 +2608,7 @@ fn apply_jrtech_defaults() {
     for s in keys::KEYS_BUILDIN_SETTINGS {
         buildin_settings.insert(s.replace("_", "-"), s);
     }
-    let suporte = option_env!("JRTECH_MODO") == Some("suporte");
+    let suporte = jrtech_suporte();
     let mut overrides = serde_json::json!({
         "custom-rendezvous-server": config::RENDEZVOUS_SERVERS[0],
         "relay-server": config::RENDEZVOUS_SERVERS[0],

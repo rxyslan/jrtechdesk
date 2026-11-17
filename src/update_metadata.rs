@@ -23,6 +23,17 @@ pub(crate) use offline::{verify_offline_update_metadata, OfflineUpdateMetadataRe
 const UPDATE_METADATA_SIGNATURE_CONTEXT: &[u8] = b"RustDesk update metadata v1\n";
 const UPDATE_APP: &str = "rustdesk";
 pub(crate) const PUBLIC_UPDATE_PACKAGE_ID: &str = "jrtechdesk";
+// O suporte tem metadados próprios (outro .exe), assinados com outro package_id para
+// que um modo nunca aceite o arquivo do outro.
+pub(crate) const SUPORTE_UPDATE_PACKAGE_ID: &str = "jrtechdesk-suporte";
+
+pub(crate) fn update_package_id() -> &'static str {
+    if crate::common::jrtech_suporte() {
+        SUPORTE_UPDATE_PACKAGE_ID
+    } else {
+        PUBLIC_UPDATE_PACKAGE_ID
+    }
+}
 const METADATA_SCHEMA_VERSION: u32 = 1;
 const SIGNATURE_SCHEMA_VERSION: u32 = 1;
 const SIGNATURE_ALGORITHM: &str = "ed25519";
@@ -164,7 +175,7 @@ pub(crate) fn verify_update_metadata(
         signature_bytes,
         VerificationOptions {
             requirements: metadata_requirements,
-            expected_package_id: PUBLIC_UPDATE_PACKAGE_ID,
+            expected_package_id: update_package_id(),
             artifact_url_policy,
             trusted_keys: TRUSTED_UPDATE_KEYS,
         },

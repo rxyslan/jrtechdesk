@@ -437,7 +437,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       isCardClosed = false;
     }
     if (updateUrl.isNotEmpty && !isCardClosed) {
-      final isToUpdate = isWindows && bind.mainIsInstalled();
+      // Windows instalado (completo) instala; o suporte (só recebe conexões, portátil)
+      // troca o próprio .exe.
+      final isToUpdate =
+          isWindows && (bind.mainIsInstalled() || bind.isIncomingOnly());
       String btnText = isToUpdate ? 'Update' : 'Download';
       GestureTapCallback onPressed = () async {
         final Uri url = Uri.parse('$kJrTechReleasesUrl/latest');
