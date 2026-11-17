@@ -2977,7 +2977,9 @@ pub fn main_set_common(_key: String, _value: String) {
             );
             // JrTechDesk suporte é portátil: troca o próprio .exe em vez de instalar.
             #[cfg(target_os = "windows")]
-            let portable = crate::common::jrtech_suporte() && !crate::platform::is_installed();
+            // O suporte nunca é instalado (disable-installation fixo). Não usar is_installed():
+            // ele diz se o completo está instalado na máquina, não se este processo é o instalado.
+            let portable = crate::common::jrtech_suporte();
             #[cfg(target_os = "windows")]
             let update_res = if portable {
                 crate::platform::update_portable_to_verified(

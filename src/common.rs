@@ -1072,12 +1072,12 @@ pub fn jrtech_release() -> u32 {
         .unwrap_or(0)
 }
 
-/// Versão completa do JrTechDesk, por exemplo `1.5.3-jr2`.
 /// Build do modo suporte (JRTECH_MODO=suporte): só recebe conexões e roda sem instalar.
 pub fn jrtech_suporte() -> bool {
     option_env!("JRTECH_MODO") == Some("suporte")
 }
 
+/// Versão completa do JrTechDesk, por exemplo `1.5.3-jr2`.
 pub fn jrtech_version() -> String {
     format!("{}-jr{}", crate::VERSION, jrtech_release())
 }
@@ -1114,6 +1114,10 @@ pub(crate) fn is_newer_jrtech_version(candidate: &str, current: &str) -> ResultT
 }
 
 pub fn check_software_update() {
+    // Build de teste (versao-jr=0) nunca recebe atualização: nem consulta o GitHub.
+    if jrtech_release() == 0 {
+        return;
+    }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
     if config::option2bool(keys::OPTION_ENABLE_CHECK_UPDATE, &opt) {
         std::thread::spawn(move || allow_err!(do_check_software_update()));
@@ -2608,7 +2612,7 @@ fn apply_jrtech_defaults() {
     for s in keys::KEYS_BUILDIN_SETTINGS {
         buildin_settings.insert(s.replace("_", "-"), s);
     }
-    let suporte = jrtech_suporte();
+    let suporte = option_env!("JRTECH_MODO") == Some("suporte");
     let mut overrides = serde_json::json!({
         "custom-rendezvous-server": config::RENDEZVOUS_SERVERS[0],
         "relay-server": config::RENDEZVOUS_SERVERS[0],
@@ -3313,6 +3317,16 @@ mod tests {
         ] {
             assert!(display_version_from_release_id(release_id).is_err(), "{release_id}");
         }
+    }
+
+    #[test]
+    fn test_build_never_offers_jrtechdesk_update() {
+        // Os testes compilam sem JRTECH_RELEASE, como uma build jr0.
+        assert_eq!(jrtech_release(), 0);
+        *SOFTWARE_UPDATE_URL.lock().unwrap() = "stale".to_owned();
+        let resp = br#"{"draft":false,"prerelease":false,"tag_name":"v1.5.3-jr2","html_url":"https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2"}"#;
+        process_software_update_check_response(Bytes::from(resp.to_vec())).unwrap();
+        assert!(SOFTWARE_UPDATE_URL.lock().unwrap().is_empty());
     }
 
     #[test]

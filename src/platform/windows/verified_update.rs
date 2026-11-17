@@ -97,13 +97,26 @@ fn replace_portable_exe(target: &Path, new_exe: &Path) -> ResultType<()> {
     let mut old = target.as_os_str().to_owned();
     old.push(".old");
     let old = PathBuf::from(old);
-    let _ = std::fs::remove_file(&old);
+    if old.exists() {
+        std::fs::remove_file(&old)
+            .map_err(|e| anyhow!("falha ao apagar a cópia antiga {}: {}", old.display(), e))?;
+    }
     // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
     std::fs::rename(target, &old)
         .map_err(|e| anyhow!("falha ao trocar {}: {}", target.display(), e))?;
     if let Err(e) = std::fs::copy(new_exe, target) {
-        let _ = std::fs::remove_file(target);
-        let _ = std::fs::rename(&old, target);
+        if target.exists() {
+            allow_err!(std::fs::remove_file(target));
+        }
+        if let Err(rollback) = std::fs::rename(&old, target) {
+            log::warn!("Falha ao restaurar {}: {}", target.display(), rollback);
+            bail!(
+                "falha ao gravar a versão nova em {}: {}; a versão anterior ficou em {}",
+                target.display(),
+                e,
+                old.display()
+            );
+        }
         bail!("falha ao gravar a versão nova em {}: {}", target.display(), e);
     }
     Ok(())

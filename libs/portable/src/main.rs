@@ -298,11 +298,6 @@ fn main() -> Result<(), String> {
     #[cfg(not(windows))]
     let quick_support = false;
 
-    // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
-    // antes de extrair, senão os arquivos dela ainda estão em uso.
-    #[cfg(windows)]
-    win::wait_for_previous_instance();
-
     #[cfg(windows)]
     if args.first().is_some_and(|arg| arg == "--update") {
         if let Err(err) = win::schedule_verified_update_cleanup() {
@@ -312,6 +307,12 @@ fn main() -> Result<(), String> {
 
     let mut ui = false;
     let reader = BinaryReader::new()?;
+    // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
+    // antes de extrair, senão os arquivos dela ainda estão em uso.
+    #[cfg(windows)]
+    if let Some(dir) = dirs::data_local_dir() {
+        win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe));
+    }
     if let Some(exe) = setup(
         reader,
         None,
@@ -364,7 +365,9 @@ mod win {
         .map_err(std::io::Error::other)
     }
 
-    pub(super) fn wait_for_previous_instance() {
+    /// `extracted_exe`: o app extraído pela versão antiga, que o `--cm` dela pode segurar
+    /// por alguns segundos depois de o processo principal fechar.
+    pub(super) fn wait_for_previous_instance(extracted_exe: &Path) {
         let Some(pid) = std::env::var(super::JRTECH_UPDATE_WAIT_PID_ENV_KEY)
             .ok()
             .and_then(|pid| pid.parse::<u32>().ok())
@@ -374,21 +377,40 @@ mod win {
         unsafe {
             use winapi::um::{
                 handleapi::CloseHandle, processthreadsapi::OpenProcess,
-                synchapi::WaitForSingleObject, winnt::SYNCHRONIZE,
+                synchapi::WaitForSingleObject, winbase::WAIT_OBJECT_0, winnt::SYNCHRONIZE,
             };
             let process = OpenProcess(SYNCHRONIZE, 0, pid);
-            if !process.is_null() {
-                WaitForSingleObject(process, 60_000);
+            if process.is_null() {
+                println!("previous instance {} already exited", pid);
+            } else {
+                if WaitForSingleObject(process, 60_000) != WAIT_OBJECT_0 {
+                    eprintln!("previous instance {} did not exit in 60s", pid);
+                }
                 CloseHandle(process);
             }
         }
-        // O serviço portátil fecha logo depois do processo principal.
-        std::thread::sleep(std::time::Duration::from_secs(3));
+        // Os outros processos da versão antiga (--cm, serviço portátil) ainda podem segurar
+        // o exe extraído. Espera ele ficar livre para escrita, até 30 s.
+        if extracted_exe.exists() {
+            let start = std::time::Instant::now();
+            while fs::OpenOptions::new().write(true).open(extracted_exe).is_err() {
+                if start.elapsed() > std::time::Duration::from_secs(30) {
+                    eprintln!("{} still in use after 30s", extracted_exe.display());
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
         // Cópia antiga que a atualização deixou ao lado deste .exe.
         if let Ok(exe) = std::env::current_exe() {
             let mut old = exe.into_os_string();
             old.push(".old");
-            let _ = fs::remove_file(old);
+            let old = Path::new(&old);
+            if old.exists() {
+                if let Err(e) = fs::remove_file(old) {
+                    eprintln!("failed to remove {}: {}", old.display(), e);
+                }
+            }
         }
     }
 
