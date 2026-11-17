@@ -22,6 +22,10 @@ on:
         type: choice
         options: [completo, suporte]
         default: completo
+      versao-jr:
+        description: "Número da versão JrTechDesk (1, 2, 3...). 0 = build de teste, sem atualização automática"
+        type: string
+        default: "0"
       run-tests:
         description: "Rodar os testes Rust (mais ~15-25 min)"
         type: boolean
@@ -96,6 +100,7 @@ jobs:
     runs-on: ${{ matrix.job.os }}
     env:
       JRTECH_MODO: ${{ inputs.modo }}
+      JRTECH_RELEASE: ${{ inputs.versao-jr }}
     strategy:
       fail-fast: false
       matrix:
@@ -122,6 +127,13 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Validar versão JrTechDesk
+        shell: bash
+        env:
+          VERSAO_JR: ${{ inputs.versao-jr }}
+        run: |
+          [[ "$VERSAO_JR" =~ ^(0|[1-9][0-9]{0,5})$ ]] || { echo "::error::versao-jr precisa ser um número"; exit 1; }
 
       - name: Aplicar tema JrTechDesk
         shell: bash

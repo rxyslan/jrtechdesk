@@ -1,0 +1,224 @@
+name: JrTechDesk Release
+
+# Publica uma versão do JrTechDesk no GitHub Releases, em duas etapas:
+#
+#   1. preparar: junta os arquivos de quatro builds já concluídas (Windows completo/suporte,
+#      Linux completo/suporte, todas do mesmo commit e com a mesma versao-jr) numa release
+#      em RASCUNHO. Ninguém vê ainda.
+#   2. (opcional) assinar os .exe com o certificado de código e substituir no rascunho.
+#   3. publicar: gera o jrtechdesk-update.json assinado com a nossa chave (segredo
+#      JRTECH_UPDATE_ED25519_SEED) a partir dos arquivos que estão no rascunho e publica.
+#      A partir daí os JrTechDesk instalados veem a versão nova.
+#
+# Os nomes dos arquivos são fixos, então estes links sempre levam à última versão:
+#   https://github.com/rxyslan/jrtechdesk/releases/latest/download/JrTechDesk-suporte.exe
+#   https://github.com/rxyslan/jrtechdesk/releases/latest/download/JrTechDesk-completo.exe
+
+on:
+  workflow_dispatch:
+    inputs:
+      etapa:
+        description: "preparar = monta o rascunho; publicar = assina a atualização e publica"
+        type: choice
+        options: [preparar, publicar]
+        default: preparar
+      versao-jr:
+        description: "Número da versão JrTechDesk (o mesmo usado nas builds)"
+        type: string
+        required: true
+      run-windows-completo:
+        description: "preparar: ID da build Windows completo"
+        type: string
+        default: ""
+      run-windows-suporte:
+        description: "preparar: ID da build Windows suporte"
+        type: string
+        default: ""
+      run-linux-completo:
+        description: "preparar: ID da build Linux completo"
+        type: string
+        default: ""
+      run-linux-suporte:
+        description: "preparar: ID da build Linux suporte"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: jrtechdesk-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ETAPA: ${{ inputs.etapa }}
+      VERSAO_JR: ${{ inputs.versao-jr }}
+      RUN_WIN_COMPLETO: ${{ inputs.run-windows-completo }}
+      RUN_WIN_SUPORTE: ${{ inputs.run-windows-suporte }}
+      RUN_LINUX_COMPLETO: ${{ inputs.run-linux-completo }}
+      RUN_LINUX_SUPORTE: ${{ inputs.run-linux-suporte }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Versão
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSAO_JR" =~ ^[1-9][0-9]{0,5}$ ]] || { echo "::error::versao-jr precisa ser 1 ou mais"; exit 1; }
+          base="$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' Cargo.toml | head -1)"
+          [ -n "$base" ] || { echo "::error::versão não encontrada no Cargo.toml"; exit 1; }
+          echo "VERSAO=${base}-jr${VERSAO_JR}" >> "$GITHUB_ENV"
+          echo "TAG=v${base}-jr${VERSAO_JR}" >> "$GITHUB_ENV"
+          echo "Versão: ${base}-jr${VERSAO_JR}"
+
+      # ---------------------------------------------------------------- preparar
+      - name: Conferir as builds
+        if: inputs.etapa == 'preparar'
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_run() { # id workflow padrão-do-log; imprime o commit da build
+            local id="$1" wf="$2" pattern="$3" info
+            [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de build inválido: '$id'" >&2; return 1; }
+            info="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
+            [ "$(jq -r .name <<<"$info")" = "$wf" ] || { echo "::error::build $id não é do workflow '$wf'" >&2; return 1; }
+            [ "$(jq -r .conclusion <<<"$info")" = "success" ] || { echo "::error::build $id não terminou com sucesso" >&2; return 1; }
+            # A versao-jr fica no log de cada build; confere que é a mesma desta release.
+            gh run view "$id" -R "$GITHUB_REPOSITORY" --log > "log-$id.txt"
+            grep -Eq "$pattern" "log-$id.txt" \
+              || { echo "::error::build $id não foi feita com versao-jr=$VERSAO_JR" >&2; return 1; }
+            jq -r .head_sha <<<"$info"
+          }
+          s1="$(check_run "$RUN_WIN_COMPLETO" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b")"
+          s2="$(check_run "$RUN_WIN_SUPORTE" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b")"
+          s3="$(check_run "$RUN_LINUX_COMPLETO" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b")"
+          s4="$(check_run "$RUN_LINUX_SUPORTE" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b")"
+          if [ "$s1" != "$s2" ] || [ "$s1" != "$s3" ] || [ "$s1" != "$s4" ]; then
+            echo "::error::as quatro builds precisam ser do mesmo commit ($s1 $s2 $s3 $s4)"; exit 1
+          fi
+          echo "COMMIT=$s1" >> "$GITHUB_ENV"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::a release $TAG já existe; use outro número de versão"; exit 1
+          fi
+
+      - name: Baixar os arquivos das builds
+        if: inputs.etapa == 'preparar'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dl out
+          get() { # id padrão-do-artefato destino
+            rm -rf dl/*
+            gh run download "$1" -R "$GITHUB_REPOSITORY" -p "$2" -D dl
+            local files
+            mapfile -t files < <(find dl -type f -name "$3")
+            [ "${#files[@]}" -eq 1 ] || { echo "::error::esperava 1 arquivo $3 na build $1, achei ${#files[@]}"; exit 1; }
+            cp "${files[0]}" "out/$4"
+          }
+          get "$RUN_WIN_COMPLETO"   'jrtechdesk-installer-x86_64-completo-*' '*.exe'     JrTechDesk-completo.exe
+          get "$RUN_WIN_SUPORTE"    'jrtechdesk-installer-x86_64-suporte-*'  '*.exe'     JrTechDesk-suporte.exe
+          get "$RUN_LINUX_COMPLETO" 'jrtechdesk-deb-x86_64-completo-*'       '*.deb'     jrtechdesk-completo.deb
+          get "$RUN_LINUX_SUPORTE"  'jrtechdesk-deb-x86_64-suporte-*'        '*.deb'     jrtechdesk-suporte.deb
+          get "$RUN_LINUX_COMPLETO" 'jrtechdesk-archlinux-x86_64-completo-*' '*.pkg.tar.zst' jrtechdesk-completo.pkg.tar.zst
+          get "$RUN_LINUX_SUPORTE"  'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst' jrtechdesk-suporte.pkg.tar.zst
+          (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Criar o rascunho da release
+        if: inputs.etapa == 'preparar'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > notes.md <<EOF
+          JrTechDesk ${VERSAO} (commit ${COMMIT}).
+
+          | Arquivo | Para quem |
+          |---|---|
+          | \`JrTechDesk-suporte.exe\` | Cliente no Windows: abre direto, sem instalar |
+          | \`JrTechDesk-completo.exe\` | Técnico no Windows: instala e atualiza sozinho |
+          | \`jrtechdesk-completo.deb\` / \`.pkg.tar.zst\` | Técnico no Linux (Debian/Ubuntu, Arch) |
+          | \`jrtechdesk-suporte.deb\` / \`.pkg.tar.zst\` | Cliente no Linux |
+
+          Código-fonte (AGPL-3.0): este repositório, no commit acima.
+          EOF
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
+            --title "JrTechDesk ${VERSAO}" --notes-file notes.md out/*
+          echo "Rascunho criado. Assine os .exe se for o caso e rode a etapa 'publicar'." >> "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------------------------------- publicar
+      - name: Install Python
+        if: inputs.etapa == 'publicar'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        if: inputs.etapa == 'publicar'
+        run: 'python -m pip install --only-binary=:all: --require-hashes -r res/update/update_metadata_requirements.txt'
+
+      - name: Conferir a chave de assinatura
+        if: inputs.etapa == 'publicar'
+        env:
+          RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.JRTECH_UPDATE_ED25519_SEED }}
+          RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ vars.JRTECH_UPDATE_ED25519_PUBLIC_KEY }}
+        run: python res/update/generate_update_metadata.py check-key
+
+      - name: Baixar o rascunho
+        if: inputs.etapa == 'publicar'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" = "true" ] \
+            || { echo "::error::$TAG não existe ou já foi publicada"; exit 1; }
+          mkdir -p out
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D out \
+            -p 'JrTechDesk-*.exe' -p 'jrtechdesk-*.deb' -p 'jrtechdesk-*.pkg.tar.zst'
+          ls -la out
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qx 'jrtechdesk-update.json'; then
+            echo "::error::$TAG já tem jrtechdesk-update.json; use outro número de versão"; exit 1
+          fi
+
+      - name: Assinar o arquivo de atualização
+        if: inputs.etapa == 'publicar'
+        env:
+          RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.JRTECH_UPDATE_ED25519_SEED }}
+          RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ vars.JRTECH_UPDATE_ED25519_PUBLIC_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Só o Windows instalado (completo) se atualiza sozinho; o suporte é baixado a cada uso.
+          python res/update/generate_update_metadata.py sign \
+            --artifact windows x86_64 exe ./out/JrTechDesk-completo.exe \
+            --version "$VERSAO" --release-id "$TAG" \
+            --package-id jrtechdesk \
+            --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download" \
+            --published-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --metadata-out ./out/jrtechdesk-update.json \
+            --signature-out ./out/jrtechdesk-update.json.sig
+          python res/update/generate_update_metadata.py verify \
+            --metadata ./out/jrtechdesk-update.json \
+            --signature ./out/jrtechdesk-update.json.sig \
+            --artifact ./out/JrTechDesk-completo.exe \
+            --version "$VERSAO" --release-id "$TAG" \
+            --package-id jrtechdesk \
+            --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download"
+          cat ./out/jrtechdesk-update.json; echo
+
+      - name: Publicar
+        if: inputs.etapa == 'publicar'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Os .exe podem ter sido trocados pelos assinados: refaz a lista de SHA-256.
+          (cd out && sha256sum JrTechDesk-*.exe jrtechdesk-*.deb jrtechdesk-*.pkg.tar.zst > SHA256SUMS.txt)
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber \
+            out/jrtechdesk-update.json out/jrtechdesk-update.json.sig out/SHA256SUMS.txt
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          echo "Publicada: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
