@@ -525,8 +525,8 @@ class _GeneralState extends State<_General> {
   Widget other() {
     final incomingOnly = bind.isIncomingOnly();
     final outgoingOnly = bind.isOutgoingOnly();
-    // No JrTechDesk a atualização automática é fixa (allow-auto-update nos overrides),
-    // então a caixa não teria efeito.
+    // No JrTechDesk a instalação automática fica desligada de forma fixa
+    // (allow-auto-update nos overrides), então a caixa não teria efeito.
     final showAutoUpdate = (isWindows && bind.mainIsInstalled() && !bind.isCustomClient()) ||
     (isMacOS && bind.mainIsInstalled() && bind.mainIsInstalledDaemon(prompt: false) && !bind.isCustomClient());
     final children = <Widget>[

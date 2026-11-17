@@ -1195,8 +1195,9 @@ fn clear_software_update_url() {
 
 // Resposta de https://api.github.com/repos/<dono>/<repo>/releases/latest.
 fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
-    // Build de teste (versao-jr=0): nunca oferece nem instala atualização.
-    if jrtech_release() == 0 {
+    // Build de teste (versao-jr=0) e modo suporte (portátil, baixado a cada
+    // atendimento) não avisam nem instalam atualização.
+    if jrtech_release() == 0 || option_env!("JRTECH_MODO") == Some("suporte") {
         clear_software_update_url();
         return Ok(());
     }
@@ -2609,8 +2610,9 @@ fn apply_jrtech_defaults() {
         "relay-server": config::RENDEZVOUS_SERVERS[0],
         "api-server": "https://api.desbloqueiorepidclass.com.br",
         "key": config::RS_PUB_KEY,
-        // Atualiza sozinho (Windows instalado) quando não há ninguém conectado.
-        "allow-auto-update": "Y",
+        // A atualização é opcional: o app avisa na tela inicial e o usuário decide
+        // quando atualizar. Nunca instala sozinho.
+        "allow-auto-update": "N",
         "hide-server-settings": "Y",
         "hide-proxy-settings": "Y",
         "hide-websocket-settings": "Y",

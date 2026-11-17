@@ -50,6 +50,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
   bool isCardClosed = false;
+  // Versão do último aviso mostrado; uma versão nova reabre o aviso fechado.
+  String _updateCardUrl = '';
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
@@ -430,6 +432,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
   Widget buildHelpCards(String updateUrl) {
     // JrTechDesk: o aviso de versão nova vem das nossas releases no GitHub.
+    if (updateUrl.isNotEmpty && updateUrl != _updateCardUrl) {
+      _updateCardUrl = updateUrl;
+      isCardClosed = false;
+    }
     if (updateUrl.isNotEmpty && !isCardClosed) {
       final isToUpdate = isWindows && bind.mainIsInstalled();
       String btnText = isToUpdate ? 'Update' : 'Download';
