@@ -194,7 +194,10 @@ fn check_update(manually: bool) -> ResultType<()> {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
-    let update_msi = crate::platform::is_msi_installed()? && !crate::is_custom_client();
+    // JrTechDesk suporte é portátil: não há instalação (nem chave de desinstalação).
+    let update_msi = !crate::common::jrtech_suporte()
+        && crate::platform::is_msi_installed()?
+        && !crate::is_custom_client();
     #[cfg(not(target_os = "windows"))]
     let update_msi = false;
     if !(manually || config::Config::get_bool_option(keys::OPTION_ALLOW_AUTO_UPDATE)) {

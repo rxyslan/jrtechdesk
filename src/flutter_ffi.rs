@@ -2866,7 +2866,11 @@ fn verified_update_artifact_for_release_page_url(
     release_page_url: &str,
 ) -> ResultType<crate::update_metadata::VerifiedUpdateArtifact> {
     #[cfg(target_os = "windows")]
-    let update_msi = crate::platform::windows::is_msi_installed()? && !crate::is_custom_client();
+    // JrTechDesk suporte é portátil: não tem instalação para consultar, e a chave de
+    // desinstalação não existe na máquina do cliente (a leitura falharia com "os error 2").
+    let update_msi = !crate::common::jrtech_suporte()
+        && crate::platform::windows::is_msi_installed()?
+        && !crate::is_custom_client();
     #[cfg(target_os = "macos")]
     let update_msi = false;
     let query = crate::updater::current_update_artifact_query(update_msi);

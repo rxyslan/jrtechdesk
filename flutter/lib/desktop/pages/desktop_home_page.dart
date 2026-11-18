@@ -431,6 +431,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
+    // JrTechDesk: no suporte a janela tem o tamanho do conteúdo e não pode ser
+    // redimensionada. O aviso de versão nova chega depois (checagem no GitHub), então
+    // a janela precisa acompanhar, senão o botão Atualizar fica escondido.
+    if (bind.isIncomingOnly() && isInHomePage()) {
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (mounted) _updateWindowSize();
+      });
+    }
     // JrTechDesk: o aviso de versão nova vem das nossas releases no GitHub.
     if (updateUrl.isNotEmpty && updateUrl != _updateCardUrl) {
       _updateCardUrl = updateUrl;
