@@ -3321,8 +3321,11 @@ mod tests {
 
     #[test]
     fn test_build_never_offers_jrtechdesk_update() {
-        // Os testes compilam sem JRTECH_RELEASE, como uma build jr0.
-        assert_eq!(jrtech_release(), 0);
+        // Só vale para builds jr0. A build Windows de release roda os testes com
+        // JRTECH_RELEASE=N, e aí a resposta seria tratada como atualização de verdade.
+        if jrtech_release() != 0 {
+            return;
+        }
         *SOFTWARE_UPDATE_URL.lock().unwrap() = "stale".to_owned();
         let resp = br#"{"draft":false,"prerelease":false,"tag_name":"v1.5.3-jr2","html_url":"https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2"}"#;
         process_software_update_check_response(Bytes::from(resp.to_vec())).unwrap();

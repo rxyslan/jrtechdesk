@@ -311,7 +311,12 @@ fn main() -> Result<(), String> {
     // antes de extrair, senão os arquivos dela ainda estão em uso.
     #[cfg(windows)]
     if let Some(dir) = dirs::data_local_dir() {
-        win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe));
+        if !win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe)) {
+            // Extrair agora abriria a versão antiga ou uma mistura das duas. O exe novo já
+            // está no lugar, então basta abrir de novo depois que a versão antiga fechar.
+            win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            std::process::exit(1);
+        }
     }
     if let Some(exe) = setup(
         reader,
@@ -367,12 +372,13 @@ mod win {
 
     /// `extracted_exe`: o app extraído pela versão antiga, que o `--cm` dela pode segurar
     /// por alguns segundos depois de o processo principal fechar.
-    pub(super) fn wait_for_previous_instance(extracted_exe: &Path) {
+    /// Retorna `false` se a versão antiga não soltou os arquivos a tempo.
+    pub(super) fn wait_for_previous_instance(extracted_exe: &Path) -> bool {
         let Some(pid) = std::env::var(super::JRTECH_UPDATE_WAIT_PID_ENV_KEY)
             .ok()
             .and_then(|pid| pid.parse::<u32>().ok())
         else {
-            return;
+            return true;
         };
         unsafe {
             use winapi::um::{
@@ -383,10 +389,12 @@ mod win {
             if process.is_null() {
                 println!("previous instance {} already exited", pid);
             } else {
-                if WaitForSingleObject(process, 60_000) != WAIT_OBJECT_0 {
-                    eprintln!("previous instance {} did not exit in 60s", pid);
-                }
+                let exited = WaitForSingleObject(process, 60_000) == WAIT_OBJECT_0;
                 CloseHandle(process);
+                if !exited {
+                    eprintln!("previous instance {} did not exit in 60s", pid);
+                    return false;
+                }
             }
         }
         // Os outros processos da versão antiga (--cm, serviço portátil) ainda podem segurar
@@ -396,7 +404,7 @@ mod win {
             while fs::OpenOptions::new().write(true).open(extracted_exe).is_err() {
                 if start.elapsed() > std::time::Duration::from_secs(30) {
                     eprintln!("{} still in use after 30s", extracted_exe.display());
-                    break;
+                    return false;
                 }
                 std::thread::sleep(std::time::Duration::from_millis(200));
             }
@@ -411,6 +419,22 @@ mod win {
                     eprintln!("failed to remove {}: {}", old.display(), e);
                 }
             }
+        }
+        true
+    }
+
+    pub(super) fn show_error(text: &str) {
+        use std::os::windows::ffi::OsStrExt;
+        let wide = |s: &str| {
+            std::ffi::OsStr::new(s)
+                .encode_wide()
+                .chain(Some(0))
+                .collect::<Vec<u16>>()
+        };
+        let (text, title) = (wide(text), wide("JrTechDesk"));
+        unsafe {
+            use winapi::um::winuser::{MessageBoxW, MB_ICONERROR, MB_OK};
+            MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR);
         }
     }
 
