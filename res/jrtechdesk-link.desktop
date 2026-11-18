@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=JrTechDesk
+NoDisplay=true
+MimeType=x-scheme-handler/jrtechdesk;
+TryExec=jrtechdesk
+Exec=jrtechdesk %u
+Icon=jrtechdesk
+Terminal=false
+Type=Application
+StartupNotify=false
+StartupWMClass=jrtechdesk

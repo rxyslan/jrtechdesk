@@ -1,17 +1,17 @@
 [Unit]
-Description=RustDesk
+Description=JrTechDesk
 Requires=network.target
 After=systemd-user-sessions.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/rustdesk --service
+ExecStart=/usr/bin/jrtechdesk --service
 # kill --tray and --server both
-ExecStop=pkill -f "rustdesk --"
+ExecStop=pkill -f "jrtechdesk --"
 # below two lines do not work, have to use above one line
-#ExecStop=pkill -f "rustdesk --tray"
-#ExecStop=pkill -f "rustdesk --server"
-PIDFile=/run/rustdesk.pid
+#ExecStop=pkill -f "jrtechdesk --tray"
+#ExecStop=pkill -f "jrtechdesk --server"
+PIDFile=/run/jrtechdesk.pid
 KillMode=mixed
 TimeoutStopSec=30
 User=root

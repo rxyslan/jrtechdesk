@@ -357,13 +357,13 @@ def generate_control_file(version):
     control_file_path = "../res/DEBIAN/control"
     system2('/bin/rm -rf %s' % control_file_path)
 
-    content = """Package: rustdesk
+    content = """Package: jrtechdesk
 Section: net
 Priority: optional
 Version: %s
 Architecture: %s
-Maintainer: rustdesk <info@rustdesk.com>
-Homepage: https://rustdesk.com
+Maintainer: JR Tech <contato@rygtech.com.br>
+Homepage: https://github.com/rxyslan/jrtechdesk
 Depends: libgtk-3-0t64 | libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2t64 | libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, gstreamer1.0-pipewire%s
 Recommends: libayatana-appindicator3-1
 Description: A remote control software.
@@ -691,8 +691,8 @@ def measured_glibc_floor():
     # libdrmtap is built on a newer base than the rest of the deb, so the floor is whichever staged
     # object is higher -- and it moves whenever either base does.
     paths = [p for p in glob.glob('tmpdeb/usr/lib/rustdesk/libdrmtap.so.0.*')
-             + glob.glob('tmpdeb/usr/share/rustdesk/lib/librustdesk.so')
-             + glob.glob('tmpdeb/usr/share/rustdesk/rustdesk')
+             + glob.glob('tmpdeb/usr/share/jrtechdesk/lib/librustdesk.so')
+             + glob.glob('tmpdeb/usr/share/jrtechdesk/jrtechdesk')
              if os.path.isfile(p) and not os.path.islink(p)]
     minor = max((_max_glibc_minor(p) for p in paths), default=0)
     if not minor:
@@ -716,9 +716,9 @@ def retarget_control_to_drm_variant():
         lines = f.readlines()
     out = []
     for line in lines:
-        if line.startswith('Package: rustdesk'):
+        if line.startswith('Package: jrtechdesk'):
             out.append(f'Package: {DRM_PACKAGE_NAME}\n')
-            out.append('Conflicts: rustdesk\nReplaces: rustdesk\nProvides: rustdesk\n')
+            out.append('Conflicts: jrtechdesk\nReplaces: jrtechdesk\nProvides: jrtechdesk\n')
         elif line.startswith('Depends:'):
             # 2.4.101 is where drmModeGetFB2 landed; below it libdrmtap loads and can never capture.
             out.append(line.rstrip('\n') + ', libdrm2 (>= 2.4.101), libegl1, libgles2, '
@@ -741,27 +741,27 @@ def build_flutter_deb(version, features):
     os.chdir('flutter')
     system2('flutter build linux --release')
     system2('mkdir -p tmpdeb/usr/bin/')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk/files/systemd/')
+    system2('mkdir -p tmpdeb/usr/share/jrtechdesk')
+    system2('mkdir -p tmpdeb/usr/share/jrtechdesk/files/systemd/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/256x256/apps/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
     system2('mkdir -p tmpdeb/usr/share/applications/')
     system2('mkdir -p tmpdeb/usr/share/polkit-1/actions')
-    system2('rm tmpdeb/usr/bin/rustdesk || true')
+    system2('rm tmpdeb/usr/bin/jrtechdesk || true')
     system2(
-        f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/rustdesk/')
+        f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/jrtechdesk/')
     system2(
-        'cp ../res/rustdesk.service tmpdeb/usr/share/rustdesk/files/systemd/')
+        'cp ../res/jrtechdesk.service tmpdeb/usr/share/jrtechdesk/files/systemd/')
     system2(
-        'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/rustdesk.png')
+        'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/jrtechdesk.png')
     system2(
-        'cp ../res/scalable.svg tmpdeb/usr/share/icons/hicolor/scalable/apps/rustdesk.svg')
+        'cp ../res/scalable.svg tmpdeb/usr/share/icons/hicolor/scalable/apps/jrtechdesk.svg')
     system2(
-        'cp ../res/rustdesk.desktop tmpdeb/usr/share/applications/rustdesk.desktop')
+        'cp ../res/jrtechdesk.desktop tmpdeb/usr/share/applications/jrtechdesk.desktop')
     system2(
-        'cp ../res/rustdesk-link.desktop tmpdeb/usr/share/applications/rustdesk-link.desktop')
+        'cp ../res/jrtechdesk-link.desktop tmpdeb/usr/share/applications/jrtechdesk-link.desktop')
     system2(
-        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/rustdesk/files/polkit && chmod a+x tmpdeb/usr/share/rustdesk/files/polkit")
+        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/jrtechdesk/files/polkit && chmod a+x tmpdeb/usr/share/jrtechdesk/files/polkit")
     # Bundle libdrmtap.so only when this build actually enabled the `drm` feature, so stock packages
     # stay exactly what they were. The root service dlopens it in-process by absolute path.
     # `features` is the comma-joined string, so split it: a bare substring test would also match any
@@ -780,14 +780,14 @@ def build_flutter_deb(version, features):
         retarget_control_to_drm_variant()
     system2('cp -a ../res/DEBIAN/* tmpdeb/DEBIAN/')
     md5_file_folder("tmpdeb/")
-    system2('dpkg-deb -b tmpdeb rustdesk.deb;')
+    system2('dpkg-deb -b tmpdeb jrtechdesk.deb;')
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../rustdesk-%s.deb' % version)
+    os.rename('jrtechdesk.deb', '../jrtechdesk-%s.deb' % version)
     if ships_so:
         # Named apart from the stock package so installing the consent-free variant is a deliberate act.
-        os.rename('../rustdesk-%s.deb' % version, f'../{DRM_PACKAGE_NAME}-{version}.deb')
+        os.rename('../jrtechdesk-%s.deb' % version, f'../{DRM_PACKAGE_NAME}-{version}.deb')
     os.chdir("..")
 
 
@@ -824,8 +824,8 @@ def assert_staged_binary_is_drm():
     Called from BOTH packaging paths. It used to guard only one of them, and `--skip-cargo` (which
     is how CI packages) reaches the other, where nothing had rebuilt the binary at all.
     """
-    binaries = [p for p in glob.glob('tmpdeb/usr/share/rustdesk/lib/librustdesk.so')
-                + glob.glob('tmpdeb/usr/share/rustdesk/rustdesk') if os.path.isfile(p)]
+    binaries = [p for p in glob.glob('tmpdeb/usr/share/jrtechdesk/lib/librustdesk.so')
+                + glob.glob('tmpdeb/usr/share/jrtechdesk/jrtechdesk') if os.path.isfile(p)]
     if not any(_carries_drmtap_marker(p) for p in binaries):
         raise Exception(
             f'--drm was requested but the staged bundle does not look like a drm build (no '
