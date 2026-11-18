@@ -8,7 +8,7 @@ use super::{
     remove_custom_client_staging_dir, ResultType, REG_NAME_INSTALL_PRINTER,
 };
 use hbb_common::{allow_err, anyhow::anyhow, bail, log};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub use file::{copy_and_verify_update_file_sha256, VerifiedUpdateFile};
 
@@ -52,6 +52,74 @@ pub fn update_to_verified(file: &str, expected_sha256: &str, expected_size: u64)
     clear_custom_client_staging_after_launch_failure(&custom_client_staging_dir, &result);
     update_file.cleanup();
     result
+}
+
+// Definidos pelo packer portátil (libs/portable/src/main.rs); manter os nomes iguais.
+const JRTECH_PORTABLE_EXE_ENV_KEY: &str = "JRTECH_PORTABLE_EXE";
+const JRTECH_UPDATE_WAIT_PID_ENV_KEY: &str = "JRTECH_UPDATE_WAIT_PID";
+
+/// JrTechDesk suporte (portátil, sem instalação): troca o próprio .exe pela versão
+/// nova, já conferida, e abre a versão nova. Quem chama fecha este processo em seguida;
+/// o packer novo espera ele sair antes de extrair.
+pub fn update_portable_to_verified(
+    file: &str,
+    expected_sha256: &str,
+    expected_size: u64,
+) -> ResultType<()> {
+    let target = std::env::var_os(JRTECH_PORTABLE_EXE_ENV_KEY)
+        .map(PathBuf::from)
+        .ok_or_else(|| anyhow!("caminho do JrTechDesk portátil desconhecido"))?;
+    let is_exe = target
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("exe"));
+    if !target.is_absolute() || !is_exe || !target.is_file() {
+        bail!("caminho do JrTechDesk portátil inválido: {}", target.display());
+    }
+
+    // A cópia conferida fica aberta (só leitura compartilhada) até o fim da troca.
+    let update_file = copy_and_verify_update_file_sha256(file, expected_sha256)?;
+    let result = update_file
+        .verify_size(expected_size)
+        .and_then(|_| update_file.path_str().map(|p| p.to_owned()))
+        .and_then(|new_exe| replace_portable_exe(&target, Path::new(&new_exe)));
+    update_file.cleanup();
+    result?;
+
+    std::process::Command::new(&target)
+        .env(JRTECH_UPDATE_WAIT_PID_ENV_KEY, std::process::id().to_string())
+        .spawn()
+        .map_err(|e| anyhow!("falha ao abrir a versão nova {}: {}", target.display(), e))?;
+    Ok(())
+}
+
+fn replace_portable_exe(target: &Path, new_exe: &Path) -> ResultType<()> {
+    let mut old = target.as_os_str().to_owned();
+    old.push(".old");
+    let old = PathBuf::from(old);
+    if old.exists() {
+        std::fs::remove_file(&old)
+            .map_err(|e| anyhow!("falha ao apagar a cópia antiga {}: {}", old.display(), e))?;
+    }
+    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
+    std::fs::rename(target, &old)
+        .map_err(|e| anyhow!("falha ao trocar {}: {}", target.display(), e))?;
+    if let Err(e) = std::fs::copy(new_exe, target) {
+        if target.exists() {
+            allow_err!(std::fs::remove_file(target));
+        }
+        if let Err(rollback) = std::fs::rename(&old, target) {
+            log::warn!("Falha ao restaurar {}: {}", target.display(), rollback);
+            bail!(
+                "falha ao gravar a versão nova em {}: {}; a versão anterior ficou em {}",
+                target.display(),
+                e,
+                old.display()
+            );
+        }
+        bail!("falha ao gravar a versão nova em {}: {}", target.display(), e);
+    }
+    Ok(())
 }
 
 fn launch_verified_update(

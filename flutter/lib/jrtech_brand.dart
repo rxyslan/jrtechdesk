@@ -7,6 +7,10 @@ const bool _siin = kJrTechTheme == 'siin';
 
 const String kJrTechCredit = 'JrTechDesk - Desenvolvido por Rayslan';
 
+/// Releases do JrTechDesk: downloads e notas de cada versão.
+const String kJrTechReleasesUrl =
+    'https://github.com/rxyslan/jrtechdesk/releases';
+
 const Color kBrandAccent = _siin ? Color(0xFF01A85A) : Color(0xFF0071FF);
 const Color kBrandAccent50 = _siin ? Color(0x7701A85A) : Color(0x770071FF);
 const Color kBrandAccent80 = _siin ? Color(0xAA01A85A) : Color(0xAA0071FF);

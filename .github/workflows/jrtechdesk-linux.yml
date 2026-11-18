@@ -22,6 +22,10 @@ on:
         type: choice
         options: [completo, suporte]
         default: completo
+      versao-jr:
+        description: "Número da versão JrTechDesk (1, 2, 3...). 0 = build de teste, sem atualização automática"
+        type: string
+        default: "0"
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -109,6 +113,13 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Validar versão JrTechDesk
+        shell: bash
+        env:
+          VERSAO_JR: ${{ inputs.versao-jr }}
+        run: |
+          [[ "$VERSAO_JR" =~ ^(0|[1-9][0-9]{0,5})$ ]] || { echo "::error::versao-jr precisa ser um número"; exit 1; }
 
       - name: Aplicar tema JrTechDesk
         shell: bash
@@ -278,7 +289,8 @@ jobs:
             echo $JOBS
             # option_env! lê o modo na compilação; precisa existir dentro do contêiner.
             export JRTECH_MODO="${{ inputs.modo }}"
-            echo "JRTECH_MODO=$JRTECH_MODO"
+            export JRTECH_RELEASE="${{ inputs.versao-jr }}"
+            echo "JRTECH_MODO=$JRTECH_MODO JRTECH_RELEASE=$JRTECH_RELEASE"
             cargo build --locked --lib $JOBS --features hwcodec,flutter,unix-file-copy-paste --release
             rm -rf target/release/deps target/release/build
             rm -rf ~/.cargo

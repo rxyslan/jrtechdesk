@@ -525,7 +525,9 @@ class _GeneralState extends State<_General> {
   Widget other() {
     final incomingOnly = bind.isIncomingOnly();
     final outgoingOnly = bind.isOutgoingOnly();
-    final showAutoUpdate = (isWindows && bind.mainIsInstalled()) ||
+    // No JrTechDesk a instalação automática fica desligada de forma fixa
+    // (allow-auto-update nos overrides), então a caixa não teria efeito.
+    final showAutoUpdate = (isWindows && bind.mainIsInstalled() && !bind.isCustomClient()) ||
     (isMacOS && bind.mainIsInstalled() && bind.mainIsInstalledDaemon(prompt: false) && !bind.isCustomClient());
     final children = <Widget>[
       if (!isWeb && !incomingOnly)
@@ -2575,7 +2577,8 @@ class _AboutState extends State<_About> {
   Widget build(BuildContext context) {
     return futureBuilder(future: () async {
       final license = await bind.mainGetLicense();
-      final version = await bind.mainGetVersion();
+      // Mostra a versão JrTechDesk (ex.: 1.5.3-jr2), usada nas atualizações.
+      final version = await bind.mainGetCommon(key: 'jrtech-version');
       final buildDate = await bind.mainGetBuildDate();
       final fingerprint = await bind.mainGetFingerprint();
       final myId = await bind.mainGetMyId();

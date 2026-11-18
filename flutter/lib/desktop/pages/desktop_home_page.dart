@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_hbb/jrtech_brand.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
@@ -49,6 +50,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   var watchIsCanRecordAudio = false;
   Timer? _updateTimer;
   bool isCardClosed = false;
+  // Versão do último aviso mostrado; uma versão nova reabre o aviso fechado.
+  String _updateCardUrl = '';
 
   final RxBool _editHover = false.obs;
   final RxBool _block = false.obs;
@@ -428,14 +431,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
-    if (!bind.isCustomClient() &&
-        updateUrl.isNotEmpty &&
-        !isCardClosed &&
-        bind.mainUriPrefixSync().contains('rustdesk')) {
-      final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
+    // JrTechDesk: o aviso de versão nova vem das nossas releases no GitHub.
+    if (updateUrl.isNotEmpty && updateUrl != _updateCardUrl) {
+      _updateCardUrl = updateUrl;
+      isCardClosed = false;
+    }
+    if (updateUrl.isNotEmpty && !isCardClosed) {
+      // Windows instalado (completo) instala; o suporte (só recebe conexões, portátil)
+      // troca o próprio .exe.
+      final isToUpdate =
+          isWindows && (bind.mainIsInstalled() || bind.isIncomingOnly());
       String btnText = isToUpdate ? 'Update' : 'Download';
       GestureTapCallback onPressed = () async {
-        final Uri url = Uri.parse('https://rustdesk.com/download');
+        final Uri url = Uri.parse('$kJrTechReleasesUrl/latest');
         await launchUrl(url);
       };
       if (isToUpdate) {
@@ -451,7 +459,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           closeButton: true,
           help: isToUpdate ? 'Changelog' : null,
           link: isToUpdate
-              ? 'https://github.com/rustdesk/rustdesk/releases/tag/${bind.mainGetNewVersion()}'
+              ? '$kJrTechReleasesUrl/tag/${bind.mainGetNewVersion()}'
               : null);
     }
     if (systemError.isNotEmpty) {

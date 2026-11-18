@@ -22,17 +22,30 @@ pub(crate) use offline::{verify_offline_update_metadata, OfflineUpdateMetadataRe
 
 const UPDATE_METADATA_SIGNATURE_CONTEXT: &[u8] = b"RustDesk update metadata v1\n";
 const UPDATE_APP: &str = "rustdesk";
-pub(crate) const PUBLIC_UPDATE_PACKAGE_ID: &str = "rustdesk";
+pub(crate) const PUBLIC_UPDATE_PACKAGE_ID: &str = "jrtechdesk";
+// O suporte tem metadados próprios (outro .exe), assinados com outro package_id para
+// que um modo nunca aceite o arquivo do outro.
+pub(crate) const SUPORTE_UPDATE_PACKAGE_ID: &str = "jrtechdesk-suporte";
+
+pub(crate) fn update_package_id() -> &'static str {
+    if crate::common::jrtech_suporte() {
+        SUPORTE_UPDATE_PACKAGE_ID
+    } else {
+        PUBLIC_UPDATE_PACKAGE_ID
+    }
+}
 const METADATA_SCHEMA_VERSION: u32 = 1;
 const SIGNATURE_SCHEMA_VERSION: u32 = 1;
 const SIGNATURE_ALGORITHM: &str = "ed25519";
 
+// Chave pública do JrTechDesk. A secreta fica no segredo JRTECH_UPDATE_ED25519_SEED do GitHub.
+// O app só aceita atualizações assinadas com ela; a chave do RustDesk não vale aqui.
 const TRUSTED_UPDATE_KEYS: &[TrustedUpdateKey] = &[TrustedUpdateKey {
-    key_id: "2026-ed25519-main",
+    key_id: "jrtechdesk-2026-ed25519",
     algorithm: SIGNATURE_ALGORITHM,
     public_key: [
-        52, 214, 32, 65, 191, 134, 137, 75, 157, 74, 67, 221, 150, 161, 118, 215, 218, 35, 236,
-        156, 127, 120, 133, 156, 197, 141, 37, 22, 47, 106, 181, 177,
+        196, 81, 181, 176, 185, 225, 69, 73, 158, 119, 211, 100, 167, 228, 207, 5, 69, 104, 249,
+        208, 5, 246, 244, 136, 35, 69, 122, 255, 75, 57, 75, 221,
     ],
 }];
 
@@ -162,7 +175,7 @@ pub(crate) fn verify_update_metadata(
         signature_bytes,
         VerificationOptions {
             requirements: metadata_requirements,
-            expected_package_id: PUBLIC_UPDATE_PACKAGE_ID,
+            expected_package_id: update_package_id(),
             artifact_url_policy,
             trusted_keys: TRUSTED_UPDATE_KEYS,
         },

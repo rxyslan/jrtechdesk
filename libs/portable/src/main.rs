@@ -22,6 +22,12 @@ const APP_PREFIX: &str = "rustdesk";
 #[cfg(windows)]
 const VERIFIED_UPDATE_FILE_PREFIX: &str = "rustdesk-verified-";
 const APPNAME_RUNTIME_ENV_KEY: &str = "RUSTDESK_APPNAME";
+// JrTechDesk: caminho completo deste .exe, para o app portátil (suporte) se trocar
+// pela versão nova ao atualizar. Manter igual em src/platform/windows/verified_update.rs.
+const JRTECH_PORTABLE_EXE_ENV_KEY: &str = "JRTECH_PORTABLE_EXE";
+// JrTechDesk: PID da versão antiga, que ainda está fechando quando a nova é aberta.
+#[cfg(windows)]
+const JRTECH_UPDATE_WAIT_PID_ENV_KEY: &str = "JRTECH_UPDATE_WAIT_PID";
 #[cfg(windows)]
 const SET_FOREGROUND_WINDOW_ENV_KEY: &str = "SET_FOREGROUND_WINDOW";
 
@@ -247,6 +253,9 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
     }
 
     cmd.env(APPNAME_RUNTIME_ENV_KEY, exe_name);
+    cmd.env(JRTECH_PORTABLE_EXE_ENV_KEY, &exe);
+    #[cfg(windows)]
+    cmd.env_remove(JRTECH_UPDATE_WAIT_PID_ENV_KEY);
     if use_null_stdio() {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -298,6 +307,17 @@ fn main() -> Result<(), String> {
 
     let mut ui = false;
     let reader = BinaryReader::new()?;
+    // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
+    // antes de extrair, senão os arquivos dela ainda estão em uso.
+    #[cfg(windows)]
+    if let Some(dir) = dirs::data_local_dir() {
+        if !win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe)) {
+            // Extrair agora abriria a versão antiga ou uma mistura das duas. O exe novo já
+            // está no lugar, então basta abrir de novo depois que a versão antiga fechar.
+            win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            std::process::exit(1);
+        }
+    }
     if let Some(exe) = setup(
         reader,
         None,
@@ -348,6 +368,74 @@ mod win {
             )
         }
         .map_err(std::io::Error::other)
+    }
+
+    /// `extracted_exe`: o app extraído pela versão antiga, que o `--cm` dela pode segurar
+    /// por alguns segundos depois de o processo principal fechar.
+    /// Retorna `false` se a versão antiga não soltou os arquivos a tempo.
+    pub(super) fn wait_for_previous_instance(extracted_exe: &Path) -> bool {
+        let Some(pid) = std::env::var(super::JRTECH_UPDATE_WAIT_PID_ENV_KEY)
+            .ok()
+            .and_then(|pid| pid.parse::<u32>().ok())
+        else {
+            return true;
+        };
+        unsafe {
+            use winapi::um::{
+                handleapi::CloseHandle, processthreadsapi::OpenProcess,
+                synchapi::WaitForSingleObject, winbase::WAIT_OBJECT_0, winnt::SYNCHRONIZE,
+            };
+            let process = OpenProcess(SYNCHRONIZE, 0, pid);
+            if process.is_null() {
+                println!("previous instance {} already exited", pid);
+            } else {
+                let exited = WaitForSingleObject(process, 60_000) == WAIT_OBJECT_0;
+                CloseHandle(process);
+                if !exited {
+                    eprintln!("previous instance {} did not exit in 60s", pid);
+                    return false;
+                }
+            }
+        }
+        // Os outros processos da versão antiga (--cm, serviço portátil) ainda podem segurar
+        // o exe extraído. Espera ele ficar livre para escrita, até 30 s.
+        if extracted_exe.exists() {
+            let start = std::time::Instant::now();
+            while fs::OpenOptions::new().write(true).open(extracted_exe).is_err() {
+                if start.elapsed() > std::time::Duration::from_secs(30) {
+                    eprintln!("{} still in use after 30s", extracted_exe.display());
+                    return false;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
+        // Cópia antiga que a atualização deixou ao lado deste .exe.
+        if let Ok(exe) = std::env::current_exe() {
+            let mut old = exe.into_os_string();
+            old.push(".old");
+            let old = Path::new(&old);
+            if old.exists() {
+                if let Err(e) = fs::remove_file(old) {
+                    eprintln!("failed to remove {}: {}", old.display(), e);
+                }
+            }
+        }
+        true
+    }
+
+    pub(super) fn show_error(text: &str) {
+        use std::os::windows::ffi::OsStrExt;
+        let wide = |s: &str| {
+            std::ffi::OsStr::new(s)
+                .encode_wide()
+                .chain(Some(0))
+                .collect::<Vec<u16>>()
+        };
+        let (text, title) = (wide(text), wide("JrTechDesk"));
+        unsafe {
+            use winapi::um::winuser::{MessageBoxW, MB_ICONERROR, MB_OK};
+            MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR);
+        }
     }
 
     pub(super) fn copy_runtime_broker(dir: &Path) {

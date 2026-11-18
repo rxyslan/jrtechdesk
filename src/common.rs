@@ -1057,8 +1057,65 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
     }
 }
 
+/// Repositório de onde o JrTechDesk busca atualizações (GitHub Releases).
+pub const JRTECH_UPDATE_OWNER: &str = "rxyslan";
+pub const JRTECH_UPDATE_REPO: &str = "jrtechdesk";
+const JRTECH_LATEST_RELEASE_API: &str =
+    "https://api.github.com/repos/rxyslan/jrtechdesk/releases/latest";
+
+/// Número da nossa versão (jr1, jr2...), definido na build por `JRTECH_RELEASE`.
+/// `crate::VERSION` continua sendo a versão do RustDesk usada no protocolo com os outros
+/// computadores; a numeração `jr` só serve para saber se existe atualização nossa.
+pub fn jrtech_release() -> u32 {
+    option_env!("JRTECH_RELEASE")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0)
+}
+
+/// Build do modo suporte (JRTECH_MODO=suporte): só recebe conexões e roda sem instalar.
+pub fn jrtech_suporte() -> bool {
+    option_env!("JRTECH_MODO") == Some("suporte")
+}
+
+/// Versão completa do JrTechDesk, por exemplo `1.5.3-jr2`.
+pub fn jrtech_version() -> String {
+    format!("{}-jr{}", crate::VERSION, jrtech_release())
+}
+
+/// `1.5.3-jr2` -> (número de 1.5.3, 2). Recusa qualquer outro formato.
+pub(crate) fn parse_jrtech_version(version: &str) -> ResultType<(i64, u32)> {
+    let Some((base, release)) = version.split_once("-jr") else {
+        bail!("Not a JrTechDesk version: {}", version);
+    };
+    let segments = base.split('.').collect::<Vec<_>>();
+    if segments.len() != 3
+        || segments.iter().any(|segment| {
+            segment.is_empty()
+                || !segment.chars().all(|c| c.is_ascii_digit())
+                || segment.parse::<u16>().is_err()
+        })
+    {
+        bail!("Invalid JrTechDesk base version: {}", version);
+    }
+    if release.is_empty() || !release.chars().all(|c| c.is_ascii_digit()) {
+        bail!("Invalid JrTechDesk release number: {}", version);
+    }
+    let release = release.parse::<u32>()?;
+    let base = get_version_number(base);
+    if base <= 0 {
+        bail!("Invalid JrTechDesk base version: {}", version);
+    }
+    Ok((base, release))
+}
+
+/// Compara primeiro a versão do RustDesk e depois o número `jr`.
+pub(crate) fn is_newer_jrtech_version(candidate: &str, current: &str) -> ResultType<bool> {
+    Ok(parse_jrtech_version(candidate)? > parse_jrtech_version(current)?)
+}
+
 pub fn check_software_update() {
-    if is_custom_client() {
+    // Build de teste (versao-jr=0) nunca recebe atualização: nem consulta o GitHub.
+    if jrtech_release() == 0 {
         return;
     }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
@@ -1097,10 +1154,12 @@ pub(crate) fn release_id_from_update_url(update_url: &str) -> ResultType<String>
     };
     let segments = segments.collect::<Vec<_>>();
     let release_id = match segments.as_slice() {
-        ["rustdesk", "rustdesk", "releases", "tag", release_id] => *release_id,
-        ["rustdesk", "rustdesk", "releases", "tag", release_id, ""] => *release_id,
+        [JRTECH_UPDATE_OWNER, JRTECH_UPDATE_REPO, "releases", "tag", release_id] => *release_id,
+        [JRTECH_UPDATE_OWNER, JRTECH_UPDATE_REPO, "releases", "tag", release_id, ""] => {
+            *release_id
+        }
         _ => bail!(
-            "Update URL is not a RustDesk release tag URL: {}",
+            "Update URL is not a JrTechDesk release tag URL: {}",
             update_url
         ),
     };
@@ -1127,20 +1186,13 @@ pub(crate) fn url_has_explicit_port(raw_url: &str) -> bool {
     host_port.rsplit_once(':').is_some()
 }
 
+/// `v1.5.3-jr2` -> `1.5.3-jr2`. Só aceita versões publicadas (jr1 em diante).
 pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<String> {
     let display_version = release_id.strip_prefix('v').unwrap_or(release_id);
-    let segments = display_version.split('.').collect::<Vec<_>>();
-    if segments.len() != 3
-        || segments.iter().any(|segment| {
-            segment.is_empty()
-                || !segment.chars().all(|c| c.is_ascii_digit())
-                || segment.parse::<u16>().is_err()
-        })
-    {
-        bail!("Release id is not a stable display version: {}", release_id);
-    }
-    if get_version_number(display_version) <= 0 {
-        bail!("Release id has invalid display version: {}", release_id);
+    let (_, release) = parse_jrtech_version(display_version)
+        .map_err(|_| anyhow!("Release id is not a JrTechDesk version: {}", release_id))?;
+    if release == 0 {
+        bail!("Release id has no JrTechDesk release number: {}", release_id);
     }
     Ok(display_version.to_owned())
 }
@@ -1150,13 +1202,36 @@ fn clear_software_update_url() {
     *update_url = String::new();
 }
 
+// Resposta de https://api.github.com/repos/<dono>/<repo>/releases/latest.
 fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
-    let resp: hbb_common::VersionCheckResponse = serde_json::from_slice(&bytes)?;
-    let response_url = resp.url;
+    // Build de teste (versao-jr=0): não avisa nem instala atualização.
+    if jrtech_release() == 0 {
+        clear_software_update_url();
+        return Ok(());
+    }
+    let resp: Value = serde_json::from_slice(&bytes)?;
+    if resp["draft"].as_bool().unwrap_or(false) || resp["prerelease"].as_bool().unwrap_or(false) {
+        clear_software_update_url();
+        return Ok(());
+    }
+    let Some(tag_name) = resp["tag_name"].as_str() else {
+        bail!("Latest release has no tag_name");
+    };
+    let Some(response_url) = resp["html_url"].as_str() else {
+        bail!("Latest release has no html_url");
+    };
+    let response_url = response_url.to_owned();
     let release_id = release_id_from_update_url(&response_url)?;
+    if release_id != tag_name {
+        bail!(
+            "Latest release URL {} does not match tag {}",
+            response_url,
+            tag_name
+        );
+    }
     let latest_release_version = display_version_from_release_id(&release_id)?;
 
-    if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
+    if is_newer_jrtech_version(&latest_release_version, &jrtech_version())? {
         #[cfg(feature = "flutter")]
         {
             let mut m = HashMap::new();
@@ -1174,25 +1249,37 @@ fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
 }
 
 // No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
+// Because the url is always the GitHub API of our own repository.
+// Não envia nenhum dado do computador: é só um GET público da última release.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, url) =
-        hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
+    let url = JRTECH_LATEST_RELEASE_API.to_owned();
+    let user_agent = format!("JrTechDesk/{}", jrtech_version());
     let proxy_conf = Config::get_socks();
     let tls_url = get_url_for_tls(&url, &proxy_conf);
     let tls_type = get_cached_tls_type(tls_url);
     let is_tls_not_cached = tls_type.is_none();
     let tls_type = tls_type.unwrap_or(TlsType::Rustls);
     let client = create_http_client_async(tls_type, false);
-    let latest_release_response: ResultType<_> = match client.post(&url).json(&request).send().await
+    let latest_release_response: ResultType<_> = match client
+        .get(&url)
+        .header("User-Agent", user_agent.as_str())
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
     {
         Ok(resp) => Ok((tls_type, resp)),
         Err(err) => {
             if is_tls_not_cached && err.is_request() {
                 let tls_type = TlsType::NativeTls;
                 let client = create_http_client_async(tls_type, false);
-                match client.post(&url).json(&request).send().await {
+                match client
+                    .get(&url)
+                    .header("User-Agent", user_agent.as_str())
+                    .header("Accept", "application/vnd.github+json")
+                    .send()
+                    .await
+                {
                     Ok(resp) => Ok((tls_type, resp)),
                     Err(err) => Err(err.into()),
                 }
@@ -2531,6 +2618,8 @@ fn apply_jrtech_defaults() {
         "relay-server": config::RENDEZVOUS_SERVERS[0],
         "api-server": "https://api.desbloqueiorepidclass.com.br",
         "key": config::RS_PUB_KEY,
+        // A atualização é opcional: o app avisa na tela inicial e o usuário decide
+        // quando atualizar. Nunca instala sozinho.
         "allow-auto-update": "N",
         "hide-server-settings": "Y",
         "hide-proxy-settings": "Y",
@@ -3186,39 +3275,74 @@ mod tests {
     }
 
     #[test]
-    fn parses_stable_rustdesk_release_url() {
-        let update_url = "https://github.com/rustdesk/rustdesk/releases/tag/v1.4.6";
+    fn parses_jrtechdesk_release_url() {
+        let update_url = "https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2";
 
-        assert_eq!(release_id_from_update_url(update_url).unwrap(), "v1.4.6");
-        assert_eq!(display_version_from_release_id("v1.4.6").unwrap(), "1.4.6");
+        assert_eq!(release_id_from_update_url(update_url).unwrap(), "v1.5.3-jr2");
+        assert_eq!(
+            display_version_from_release_id("v1.5.3-jr2").unwrap(),
+            "1.5.3-jr2"
+        );
         assert_eq!(
             release_id_from_update_url(&format!("{update_url}/")).unwrap(),
-            "v1.4.6"
+            "v1.5.3-jr2"
         );
     }
 
     #[test]
     fn rejects_untrusted_release_urls_and_unstable_versions() {
         for update_url in [
-            "http://github.com/rustdesk/rustdesk/releases/tag/v1.4.6",
-            "https://github.com:8443/rustdesk/rustdesk/releases/tag/v1.4.6",
-            "https://github.com:443/rustdesk/rustdesk/releases/tag/v1.4.6",
-            "https://user@github.com/rustdesk/rustdesk/releases/tag/v1.4.6",
-            "https://example.com/rustdesk/rustdesk/releases/tag/v1.4.6",
-            "https://github.com/other/rustdesk/releases/tag/v1.4.6",
-            "https://github.com/rustdesk/other/releases/tag/v1.4.6",
-            "https://github.com/rustdesk/rustdesk/releases/download/v1.4.6/rustdesk.exe",
-            "https://github.com/rustdesk/rustdesk/releases/tag/v1.4.6?x=1",
-            "https://github.com/rustdesk/rustdesk/releases/tag/v1.4.6#asset",
-            "https://github.com/rustdesk/rustdesk/releases/tag/v1.4.6/extra",
-            "https://github.com/rustdesk/rustdesk/releases/tag/v1%2F4%2F6",
-            "https://github.com/rustdesk/rustdesk/releases/tag/%2e%2e",
+            "http://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://github.com:8443/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://github.com:443/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://user@github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://example.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://github.com/rustdesk/rustdesk/releases/tag/v1.5.3",
+            "https://github.com/other/jrtechdesk/releases/tag/v1.5.3-jr2",
+            "https://github.com/rxyslan/other/releases/tag/v1.5.3-jr2",
+            "https://github.com/rxyslan/jrtechdesk/releases/download/v1.5.3-jr2/a.exe",
+            "https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2?x=1",
+            "https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2#asset",
+            "https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2/extra",
+            "https://github.com/rxyslan/jrtechdesk/releases/tag/v1%2F5%2F3",
+            "https://github.com/rxyslan/jrtechdesk/releases/tag/%2e%2e",
         ] {
-            assert!(release_id_from_update_url(update_url).is_err());
+            assert!(release_id_from_update_url(update_url).is_err(), "{update_url}");
         }
-        for release_id in ["v1.4.6-rc1", "nightly", "v9223372036854775807.1.1"] {
-            assert!(display_version_from_release_id(release_id).is_err());
+        for release_id in [
+            "v1.5.3",
+            "v1.5.3-jr0",
+            "v1.5.3-jr",
+            "v1.5.3-jr+1",
+            "v1.5.3-rc1",
+            "nightly",
+            "v9223372036854775807.1.1-jr1",
+        ] {
+            assert!(display_version_from_release_id(release_id).is_err(), "{release_id}");
         }
+    }
+
+    #[test]
+    fn test_build_never_offers_jrtechdesk_update() {
+        // Só vale para builds jr0. A build Windows de release roda os testes com
+        // JRTECH_RELEASE=N, e aí a resposta seria tratada como atualização de verdade.
+        if jrtech_release() != 0 {
+            return;
+        }
+        *SOFTWARE_UPDATE_URL.lock().unwrap() = "stale".to_owned();
+        let resp = br#"{"draft":false,"prerelease":false,"tag_name":"v1.5.3-jr2","html_url":"https://github.com/rxyslan/jrtechdesk/releases/tag/v1.5.3-jr2"}"#;
+        process_software_update_check_response(Bytes::from(resp.to_vec())).unwrap();
+        assert!(SOFTWARE_UPDATE_URL.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn compares_jrtechdesk_versions() {
+        assert!(is_newer_jrtech_version("1.5.3-jr2", "1.5.3-jr1").unwrap());
+        assert!(is_newer_jrtech_version("1.5.4-jr1", "1.5.3-jr9").unwrap());
+        assert!(is_newer_jrtech_version("1.5.3-jr10", "1.5.3-jr9").unwrap());
+        assert!(!is_newer_jrtech_version("1.5.3-jr1", "1.5.3-jr1").unwrap());
+        assert!(!is_newer_jrtech_version("1.5.3-jr12", "1.5.4-jr1").unwrap());
+        assert!(is_newer_jrtech_version("1.5.3", "1.5.3-jr1").is_err());
     }
 
     #[test]
