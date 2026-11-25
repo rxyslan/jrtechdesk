@@ -1,0 +1,114 @@
+:root {
+  --fundo: #f6f8f7;
+  --cartao: #ffffff;
+  --texto: #1c2321;
+  --suave: #56625e;
+  --linha: #dfe5e2;
+  --verde: #12a150;
+  --verde-escuro: #0d7a3c;
+  --verde-claro: #e5f5ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #111614;
+    --cartao: #1a211e;
+    --texto: #e7ecea;
+    --suave: #a3b0ab;
+    --linha: #2c3531;
+    --verde: #2fbf6c;
+    --verde-escuro: #25a85c;
+    --verde-claro: #183326;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--verde-escuro); }
+@media (prefers-color-scheme: dark) { a { color: var(--verde); } }
+code {
+  font: 0.88em ui-monospace, Consolas, monospace;
+  background: var(--fundo);
+  border: 1px solid var(--linha);
+  border-radius: 4px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+.topo { background: var(--cartao); border-bottom: 1px solid var(--linha); }
+.faixa {
+  max-width: 880px; margin: 0 auto; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.faixa img { border-radius: 8px; }
+.marca { font-weight: 700; font-size: 1.15rem; }
+.empresa { color: var(--suave); font-size: 0.9rem; margin-left: auto; }
+
+main { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+section {
+  background: var(--cartao);
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  padding: 32px 28px;
+  margin: 24px 0;
+}
+h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.2; margin: 0 0 10px; }
+h2 { font-size: 1.35rem; margin: 0 0 8px; }
+.lead { font-size: 1.1rem; color: var(--suave); margin: 0 0 24px; max-width: 60ch; }
+
+.cliente { text-align: center; }
+.cliente .lead { margin-left: auto; margin-right: auto; }
+.botao {
+  display: inline-flex; flex-direction: column; align-items: center;
+  background: var(--verde); color: #fff; text-decoration: none;
+  padding: 16px 36px; border-radius: 12px;
+  box-shadow: 0 6px 18px rgb(18 161 80 / 25%);
+  transition: background .15s, transform .15s;
+  max-width: 100%;
+}
+.botao:hover { background: var(--verde-escuro); transform: translateY(-1px); }
+.botao:focus-visible { outline: 3px solid var(--texto); outline-offset: 3px; }
+.botao-titulo { font-size: 1.2rem; font-weight: 700; }
+.botao-sub { font-size: 0.9rem; opacity: .9; }
+.versao { color: var(--suave); font-size: 0.88rem; margin: 10px 0 0; }
+
+.passos {
+  list-style: none; padding: 0; margin: 32px auto 0; max-width: 640px;
+  text-align: left; display: grid; gap: 14px;
+}
+.passos li { display: flex; gap: 14px; align-items: flex-start; }
+.passos .n {
+  flex: none; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--verde-claro); color: var(--verde-escuro);
+  display: grid; place-items: center; font-weight: 700;
+}
+@media (prefers-color-scheme: dark) { .passos .n { color: var(--verde); } }
+
+.tabela { overflow-x: auto; margin: 18px 0; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linha); }
+th { font-size: 0.85rem; color: var(--suave); font-weight: 600; }
+td a { white-space: nowrap; }
+.notas { color: var(--suave); padding-left: 20px; margin: 0; }
+.notas li + li { margin-top: 6px; }
+
+.rodape {
+  max-width: 880px; margin: 0 auto; padding: 8px 16px 32px;
+  color: var(--suave); font-size: 0.85rem; text-align: center;
+}
+
+@media (max-width: 560px) {
+  section { padding: 24px 18px; border-radius: 12px; }
+  .empresa { display: none; }
+  .botao { width: 100%; padding: 16px; }
+  table { min-width: 0; }
+  thead { display: none; }
+  tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+  td { display: block; border: 0; padding: 3px 0; }
+  td:first-child { font-weight: 600; }
+  td[data-rotulo]::before { content: attr(data-rotulo) ": "; color: var(--suave); }
+}

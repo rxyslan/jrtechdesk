@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baixar JrTechDesk</title>
+<meta name="description" content="JrTechDesk: suporte remoto da Jrtech. Baixe o programa para receber atendimento.">
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="topo">
+  <div class="faixa">
+    <img src="img/app.png" alt="" width="40" height="40">
+    <span class="marca">JrTechDesk</span>
+    <span class="empresa">Jrtech Sistemas e Gestão de Pessoas</span>
+  </div>
+</header>
+
+<main>
+  <section class="cliente">
+    <h1>Suporte remoto da Jrtech</h1>
+    <p class="lead">Baixe o programa, abra e passe o <strong>ID</strong> e a <strong>senha</strong> que aparecerem para o técnico. Não precisa instalar.</p>
+
+    <a class="botao" href="/download/JrTechDesk-suporte.exe" download>
+      <span class="botao-titulo">Baixar JrTechDesk Suporte</span>
+      <span class="botao-sub">Windows · <span data-tamanho="JrTechDesk-suporte.exe">cerca de 25 MB</span></span>
+    </a>
+    <p class="versao" data-versao hidden></p>
+
+    <ol class="passos">
+      <li><span class="n">1</span><div><strong>Baixe</strong> o arquivo pelo botão acima.</div></li>
+      <li><span class="n">2</span><div><strong>Abra</strong> o arquivo baixado. Se o Windows mostrar “O Windows protegeu o computador”, clique em <em>Mais informações</em> e depois em <em>Executar assim mesmo</em>.</div></li>
+      <li><span class="n">3</span><div><strong>Informe</strong> o ID e a senha ao técnico e aceite a conexão. Para encerrar o atendimento, basta fechar o programa.</div></li>
+    </ol>
+  </section>
+
+  <section class="tecnico">
+    <h2>Para técnicos</h2>
+    <p>O <strong>Completo</strong> é instalado no computador e serve para acessar outras máquinas. O <strong>Suporte</strong> só recebe conexões e roda sem instalar.</p>
+
+    <div class="tabela">
+      <table>
+        <thead><tr><th>Sistema</th><th>Completo</th><th>Suporte</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Windows 10 e 11</td>
+            <td data-rotulo="Completo"><a href="/download/JrTechDesk-completo.exe" download>JrTechDesk-completo.exe</a></td>
+            <td data-rotulo="Suporte"><a href="/download/JrTechDesk-suporte.exe" download>JrTechDesk-suporte.exe</a></td>
+          </tr>
+          <tr>
+            <td>Ubuntu, Debian e derivados</td>
+            <td data-rotulo="Completo"><a href="/download/jrtechdesk-completo.deb" download>jrtechdesk-completo.deb</a></td>
+            <td data-rotulo="Suporte"><a href="/download/jrtechdesk-suporte.deb" download>jrtechdesk-suporte.deb</a></td>
+          </tr>
+          <tr>
+            <td>Arch Linux e derivados</td>
+            <td data-rotulo="Completo"><a href="/download/jrtechdesk-completo.pkg.tar.zst" download>.pkg.tar.zst</a></td>
+            <td data-rotulo="Suporte"><a href="/download/jrtechdesk-suporte.pkg.tar.zst" download>.pkg.tar.zst</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="notas">
+      <li>Linux: <code>sudo apt install ./jrtechdesk-completo.deb</code> ou <code>sudo pacman -U jrtechdesk-completo.pkg.tar.zst</code>.</li>
+      <li>O programa avisa quando há versão nova; ninguém precisa voltar aqui para atualizar.</li>
+      <li>Para conferir os arquivos: <a href="/download/SHA256SUMS.txt">SHA256SUMS.txt</a>.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="rodape">
+  <p>JrTechDesk é baseado no RustDesk e distribuído sob a licença AGPL-3.0.
+  <a href="https://github.com/rxyslan/jrtechdesk">Código-fonte</a></p>
+</footer>
+<script src="versao.js" defer></script>
+</body>
+</html>

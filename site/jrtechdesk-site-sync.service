@@ -1,0 +1,8 @@
+[Unit]
+Description=Atualiza o site de download do JrTechDesk com a release mais recente
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/jrtechdesk-site/sincronizar.sh
