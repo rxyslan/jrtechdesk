@@ -5,7 +5,8 @@ name: JrTechDesk Release
 #   1. preparar: junta os arquivos de quatro builds já concluídas (Windows completo/suporte,
 #      Linux completo/suporte, todas do mesmo commit e com a mesma versao-jr) numa release
 #      em RASCUNHO. Ninguém vê ainda.
-#   2. (opcional) assinar os .exe com o certificado de código e substituir no rascunho.
+#   2. a assinatura de código (certificado da Jrtech) acontece nas builds Windows, com
+#      assinar=true; os .exe que chegam aqui já vêm assinados.
 #   3. publicar: gera o jrtechdesk-update.json (completo) e o jrtechdesk-suporte-update.json
 #      (suporte), assinados com a nossa chave (segredo JRTECH_UPDATE_ED25519_SEED), a partir
 #      dos arquivos que estão no rascunho, e publica. A partir daí os JrTechDesk avisam
@@ -141,6 +142,26 @@ jobs:
           get "$RUN_LINUX_SUPORTE"  'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst' jrtechdesk-suporte.pkg.tar.zst
           (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
+      - name: Conferir a assinatura dos .exe
+        # Ligar a variável JRTECH_EXIGIR_ASSINATURA=true quando o certificado existir:
+        # a partir daí nenhum .exe sem a assinatura da Jrtech vira release.
+        if: inputs.etapa == 'preparar' && vars.JRTECH_EXIGIR_ASSINATURA == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq osslsigncode >/dev/null
+          for f in out/JrTechDesk-completo.exe out/JrTechDesk-suporte.exe; do
+            # Sem a cadeia completa o verify pode terminar com erro; o que importa aqui
+            # é haver assinatura Authenticode e o editor ser a Jrtech.
+            info="$(osslsigncode verify -in "$f" 2>&1 || true)"
+            if ! grep -q "Signer's certificate" <<<"$info" || ! grep -A6 "Signer's certificate" <<<"$info" | grep -qi "jrtech"; then
+              echo "::error::$f não está assinado pela Jrtech (rode a build Windows com assinar=true)"
+              echo "$info"
+              exit 1
+            fi
+            echo "$f: assinado pela Jrtech"
+          done
+
       - name: Criar o rascunho da release
         if: inputs.etapa == 'preparar'
         shell: bash
@@ -160,7 +181,7 @@ jobs:
           EOF
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
             --title "JrTechDesk ${VERSAO}" --notes-file notes.md out/*
-          echo "Rascunho criado. Assine os .exe se for o caso e rode a etapa 'publicar'." >> "$GITHUB_STEP_SUMMARY"
+          echo "Rascunho criado. Confira os arquivos e rode a etapa 'publicar'." >> "$GITHUB_STEP_SUMMARY"
 
       # ---------------------------------------------------------------- publicar
       - name: Install Python
