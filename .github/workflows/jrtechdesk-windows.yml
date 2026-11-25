@@ -30,6 +30,10 @@ on:
         description: "Rodar os testes Rust (mais ~15-25 min)"
         type: boolean
         default: true
+      assinar:
+        description: "Assinar com o certificado da Jrtech (Certum). Pede aprovação no ambiente 'assinatura'"
+        type: boolean
+        default: false
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -98,6 +102,14 @@ jobs:
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
+    # Assinatura: os segredos do Certum ficam no ambiente "assinatura" (só a main, com
+    # aprovação). Sem assinar, a build não usa ambiente nenhum.
+    environment: ${{ inputs.assinar && 'assinatura' || '' }}
+    # O login do SimplySign usa código de uso único: duas builds assinando ao mesmo tempo
+    # se derrubam. Builds assinadas rodam uma de cada vez.
+    concurrency:
+      group: ${{ inputs.assinar && 'jrtechdesk-assinatura' || format('jrtechdesk-windows-{0}', github.run_id) }}
+      cancel-in-progress: false
     env:
       JRTECH_MODO: ${{ inputs.modo }}
       JRTECH_RELEASE: ${{ inputs.versao-jr }}
@@ -127,6 +139,19 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Conferir os segredos da assinatura
+        if: inputs.assinar
+        shell: bash
+        env:
+          CERTUM_USUARIO: ${{ secrets.CERTUM_USUARIO }}
+          CERTUM_OTP: ${{ secrets.CERTUM_OTP }}
+        run: |
+          # Falha agora, e não depois de 1 h de compilação.
+          if [ -z "$CERTUM_USUARIO" ] || [ -z "$CERTUM_OTP" ]; then
+            echo "::error::assinar=true, mas faltam os segredos CERTUM_USUARIO e/ou CERTUM_OTP no ambiente 'assinatura'"
+            exit 1
+          fi
 
       - name: Validar versão JrTechDesk
         shell: bash
@@ -349,6 +374,57 @@ jobs:
           name: rustdesk-unsigned-windows-${{ matrix.job.arch }}
           path: rustdesk
 
+      - name: "Assinatura: instalar o SimplySign Desktop"
+        if: inputs.assinar
+        shell: pwsh
+        env:
+          INPUT_VERSION: "9.4.4.92"
+          INPUT_SHA256: "8ec420fc27798b86078b7bd02fe7152097e1b3005bab51820eaca8e57df84da3"
+        run: ./res/certum/install.ps1
+
+      - name: "Assinatura: entrar no SimplySign"
+        if: inputs.assinar
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USUARIO }}
+          CERTUM_OTP: ${{ secrets.CERTUM_OTP }}
+        run: |
+          # CERTUM_OTP pode ser o texto inteiro do QR code (otpauth://...) ou só o segredo.
+          $otp = $env:CERTUM_OTP.Trim()
+          $algo = 'SHA-256'; $digits = '6'; $period = '30'
+          if ($otp -like 'otpauth://*') {
+            $query = ([Uri]$otp).Query.TrimStart('?') -split '&'
+            $p = @{}
+            foreach ($kv in $query) { $k, $v = $kv -split '=', 2; $p[$k.ToLower()] = [Uri]::UnescapeDataString($v) }
+            $otp = $p['secret']
+            if ($p['algorithm']) { $algo = $p['algorithm'] -replace '^SHA(\d)', 'SHA-$1' }
+            if ($p['digits']) { $digits = $p['digits'] }
+            if ($p['period']) { $period = $p['period'] }
+          }
+          if (-not $otp) { throw "CERTUM_OTP sem o segredo" }
+          Write-Host "::add-mask::$otp"
+          $env:CERTUM_TOTP_SECRET = $otp
+          $env:CERTUM_TOTP_ALGORITHM = $algo
+          $env:CERTUM_TOTP_DIGITS = $digits
+          $env:CERTUM_TOTP_PERIOD = $period
+          $env:CERTUM_APP_PATH = 'C:\Program Files\Certum\SimplySign Desktop\SimplySignDesktop.exe'
+          node ./res/certum/auth.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Login no SimplySign falhou" }
+
+      - name: "Assinatura: localizar o certificado"
+        if: inputs.assinar
+        shell: pwsh
+        env:
+          INPUT_TIMEOUT: "90"
+          # Opcional: fixa a impressão digital (SHA-1) do certificado da Jrtech.
+          INPUT_CERT_SHA1: ${{ vars.CERTUM_CERT_SHA1 }}
+        run: ./res/certum/verify.ps1
+
+      - name: "Assinatura: assinar os arquivos do app"
+        if: inputs.assinar
+        shell: pwsh
+        run: ./res/certum/assinar.ps1 -Pasta ./rustdesk -SoSemAssinatura
+
       - name: Sign rustdesk files
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
@@ -369,7 +445,7 @@ jobs:
           }
 
       - name: Verify template payload signatures
-        if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
+        if: env.UPLOAD_ARTIFACT == 'true' && (env.SIGN_BASE_URL != '-2' || inputs.assinar)
         shell: powershell
         run: |
           Get-ChildItem ./rustdesk -Recurse -File -ErrorAction Stop |
@@ -411,7 +487,17 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
 
-      - name: Upload JrTechDesk installer (unsigned)
+      - name: "Assinatura: assinar o instalador"
+        if: env.UPLOAD_ARTIFACT == 'true' && inputs.assinar
+        shell: pwsh
+        run: ./res/certum/assinar.ps1 -Arquivos (Get-ChildItem ./SignOutput/*.exe).FullName
+
+      - name: "Assinatura: sair do SimplySign"
+        if: always() && inputs.assinar
+        shell: pwsh
+        run: ./res/certum/teardown.ps1
+
+      - name: Upload JrTechDesk installer
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
