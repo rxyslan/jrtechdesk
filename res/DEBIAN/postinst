@@ -23,6 +23,9 @@ if [ "$1" = configure ]; then
 		systemctl daemon-reload
 		# Instalação nova (sem versão anterior em $2) habilita o serviço; numa atualização,
 		# só se o administrador não o tinha desativado (o prerm deixa o registro).
+		# Limitação: vindo de uma versão cujo prerm não grava o registro (1.5.3-jr4 e
+		# anteriores), o prerm antigo já desativou o serviço e não há como saber o estado
+		# de antes; o serviço é reativado, como sempre foi. Avisar nas notas da release.
 		if [ -n "$2" ] && [ -e /var/lib/jrtechdesk/servico-desativado ]; then
 			echo "jrtechdesk: serviço continua desativado, como estava antes da atualização"
 		else

@@ -5,7 +5,8 @@ set -e
 case $1 in
     purge)
 		rm -rf /root/.config/jrtechdesk || true
-		rm -rf /var/lib/jrtechdesk || true
+		rm -f /var/lib/jrtechdesk/servico-desativado
+		rmdir /var/lib/jrtechdesk 2>/dev/null || true
         ;;
 esac
 

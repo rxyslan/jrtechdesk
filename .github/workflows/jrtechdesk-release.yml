@@ -6,12 +6,14 @@ name: JrTechDesk Release
 #      Linux completo/suporte, todas do mesmo commit da main, com a mesma versao-jr e, no
 #      Windows, com os testes Rust rodados) numa release em RASCUNHO. Grava junto o
 #      PROVENIENCIA.json: commit, builds e SHA-256 de cada arquivo aprovado.
-#   2. (opcional) assinar os .exe com o certificado de código e substituir no rascunho.
-#   3. publicar: só a partir da main e no ambiente "release". Faz checkout do commit das
-#      builds, exige os seis arquivos pelo nome exato e com os hashes do PROVENIENCIA.json
-#      (um .exe só pode diferir se tiver assinatura Authenticode válida), gera e assina o
-#      jrtechdesk-update.json (completo) e o jrtechdesk-suporte-update.json (suporte) e
+#   2. publicar: só a partir da main e no ambiente "release". Reconfere as quatro builds
+#      indicadas no PROVENIENCIA.json (workflow, commit, conclusão, testes), baixa os
+#      artefatos delas no Actions e exige que o rascunho tenha exatamente esses bytes;
+#      faz checkout do commit das builds, gera e assina o jrtechdesk-update.json (completo)
+#      e o jrtechdesk-suporte-update.json (suporte), reconfere tudo pelo ID da release e
 #      publica. Se parar no meio, pode rodar de novo: o que já foi assinado é conferido.
+#      Os .exe não podem ser trocados à mão no rascunho; a assinatura Authenticode, quando
+#      houver certificado, entra na build.
 #
 # Os nomes dos arquivos são fixos, então estes links sempre levam à última versão:
 #   https://github.com/rxyslan/jrtechdesk/releases/latest/download/JrTechDesk-suporte.exe
@@ -204,42 +206,155 @@ jobs:
           EOF
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
             --title "JrTechDesk ${VERSAO}" --notes-file notes.md out/*
-          echo "Rascunho criado. Assine os .exe se for o caso e rode a etapa 'publicar' a partir da main." >> "$GITHUB_STEP_SUMMARY"
+          echo "Rascunho criado. Rode a etapa 'publicar' a partir da main." >> "$GITHUB_STEP_SUMMARY"
+
+  # Disparar "publicar" de outra branch não pode passar em silêncio como job pulado.
+  recusar-publicar-fora-da-main:
+    if: inputs.etapa == 'publicar' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo "::error::a etapa publicar só roda a partir da main (este disparo veio de ${GITHUB_REF})"
+          exit 1
 
   publicar:
     if: inputs.etapa == 'publicar' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
-    # O segredo de assinatura deve ficar neste ambiente, com revisor obrigatório.
+    # O segredo de assinatura deve ficar SÓ neste ambiente (não no repositório), com revisor
+    # obrigatório e política de branch restrita à main. Ver o README.
     environment: release
     env:
       GH_TOKEN: ${{ github.token }}
       VERSAO_JR: ${{ inputs.versao-jr }}
     steps:
-      - name: Achar o rascunho e o commit aprovado
+      - name: Achar o rascunho
         shell: bash
         run: |
           set -euo pipefail
           [[ "$VERSAO_JR" =~ ^[1-9][0-9]{0,5}$ ]] || { echo "::error::versao-jr precisa ser 1 ou mais"; exit 1; }
           gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
-            --jq ".[] | select(.draft and (.tag_name | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-jr${VERSAO_JR}\$\"))) | [.tag_name, .target_commitish] | @tsv" \
+            --jq ".[] | select(.draft and (.tag_name | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-jr${VERSAO_JR}\$\"))) | [.id, .tag_name, .target_commitish] | @tsv" \
             > rascunhos.tsv
           [ "$(wc -l < rascunhos.tsv)" -eq 1 ] \
             || { echo "::error::esperava 1 rascunho com versao-jr=$VERSAO_JR, achei $(wc -l < rascunhos.tsv)"; cat rascunhos.tsv; exit 1; }
-          IFS=$'\t' read -r tag alvo < rascunhos.tsv
-          mkdir -p prov
-          gh release download "$tag" -R "$GITHUB_REPOSITORY" -p PROVENIENCIA.json -D prov
+          IFS=$'\t' read -r id tag alvo < rascunhos.tsv
+          [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de release inválido: $id"; exit 1; }
+          # Daqui em diante o rascunho é sempre lido pelo ID, não pelo nome da tag.
+          echo "RELEASE_ID=$id" >> "$GITHUB_ENV"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSAO=${tag#v}" >> "$GITHUB_ENV"
+          echo "ALVO=$alvo" >> "$GITHUB_ENV"
+
+      # O PROVENIENCIA.json do rascunho só diz QUAIS builds conferir: a verdade vem dos
+      # artefatos dessas builds no Actions, que ninguém edita depois de a build terminar.
+      - name: Reconferir as builds e baixar os artefatos aprovados
+        shell: bash
+        run: |
+          set -euo pipefail
+          baixar_asset() { # nome destino
+            local url
+            url="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --jq ".assets[] | select(.name == \"$1\") | .url")"
+            [ -n "$url" ] || { echo "::error::falta $1 no rascunho"; exit 1; }
+            gh api -H 'Accept: application/octet-stream' "$url" > "$2"
+          }
+          mkdir -p prov aprovados dl
+          baixar_asset PROVENIENCIA.json prov/PROVENIENCIA.json
           commit="$(jq -er .commit prov/PROVENIENCIA.json)"
-          [ "$(jq -er .tag prov/PROVENIENCIA.json)" = "$tag" ] || { echo "::error::PROVENIENCIA.json é de outra tag"; exit 1; }
+          [ "$(jq -er .tag prov/PROVENIENCIA.json)" = "$TAG" ] || { echo "::error::PROVENIENCIA.json é de outra tag"; exit 1; }
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit inválido no PROVENIENCIA.json"; exit 1; }
-          [ "$alvo" = "$commit" ] || { echo "::error::o rascunho aponta para $alvo, mas as builds são de $commit"; exit 1; }
+          [ "$ALVO" = "$commit" ] || { echo "::error::o rascunho aponta para $ALVO, mas as builds são de $commit"; exit 1; }
           status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${commit}" --jq .status)"
           case "$status" in
             identical|behind) ;;
             *) echo "::error::o commit $commit não está na main ($status)"; exit 1 ;;
           esac
-          echo "TAG=$tag" >> "$GITHUB_ENV"
-          echo "VERSAO=${tag#v}" >> "$GITHUB_ENV"
+          conferir_build() { # id arquivo-do-workflow padrão-do-log exige-testes
+            local id="$1" wf="$2" pattern="$3" testes="$4" info
+            [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de build inválido: '$id'"; exit 1; }
+            info="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
+            [ "$(jq -r .path <<<"$info")" = "$wf" ] || { echo "::error::build $id não é de $wf"; exit 1; }
+            [ "$(jq -r .conclusion <<<"$info")" = success ] || { echo "::error::build $id não terminou com sucesso"; exit 1; }
+            [ "$(jq -r .head_sha <<<"$info")" = "$commit" ] || { echo "::error::build $id não é do commit $commit"; exit 1; }
+            gh run view "$id" -R "$GITHUB_REPOSITORY" --log > "log-$id.txt"
+            grep -Eq "$pattern" "log-$id.txt" || { echo "::error::build $id não foi feita com versao-jr=$VERSAO_JR"; exit 1; }
+            if [ "$testes" = sim ]; then
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --paginate \
+                --jq '.jobs[].steps[] | select(.name == "Run the Rust tests") | .conclusion' > "testes-$id.txt"
+              if ! grep -qx success "testes-$id.txt" || grep -qvx success "testes-$id.txt"; then
+                echo "::error::build $id não rodou os testes Rust com sucesso"; exit 1
+              fi
+            fi
+          }
+          get() { # id padrão-do-artefato padrão-do-arquivo destino
+            rm -rf dl/*
+            gh run download "$1" -R "$GITHUB_REPOSITORY" -p "$2" -D dl
+            local files
+            mapfile -t files < <(find dl -type f -name "$3")
+            [ "${#files[@]}" -eq 1 ] || { echo "::error::esperava 1 arquivo $3 na build $1, achei ${#files[@]}"; exit 1; }
+            cp "${files[0]}" "aprovados/$4"
+          }
+          wc_id="$(jq -er .builds.windows_completo prov/PROVENIENCIA.json)"
+          ws_id="$(jq -er .builds.windows_suporte prov/PROVENIENCIA.json)"
+          lc_id="$(jq -er .builds.linux_completo prov/PROVENIENCIA.json)"
+          ls_id="$(jq -er .builds.linux_suporte prov/PROVENIENCIA.json)"
+          conferir_build "$wc_id" .github/workflows/jrtechdesk-windows.yml "JRTECH_RELEASE: ${VERSAO_JR}\b" sim
+          conferir_build "$ws_id" .github/workflows/jrtechdesk-windows.yml "JRTECH_RELEASE: ${VERSAO_JR}\b" sim
+          conferir_build "$lc_id" .github/workflows/jrtechdesk-linux.yml "JRTECH_RELEASE=${VERSAO_JR}\b" nao
+          conferir_build "$ls_id" .github/workflows/jrtechdesk-linux.yml "JRTECH_RELEASE=${VERSAO_JR}\b" nao
+          get "$wc_id" 'jrtechdesk-installer-x86_64-completo-*' '*.exe'          JrTechDesk-completo.exe
+          get "$ws_id" 'jrtechdesk-installer-x86_64-suporte-*'  '*.exe'          JrTechDesk-suporte.exe
+          get "$lc_id" 'jrtechdesk-deb-x86_64-completo-*'       '*.deb'          jrtechdesk-completo.deb
+          get "$ls_id" 'jrtechdesk-deb-x86_64-suporte-*'        '*.deb'          jrtechdesk-suporte.deb
+          get "$lc_id" 'jrtechdesk-archlinux-x86_64-completo-*' '*.pkg.tar.zst'  jrtechdesk-completo.pkg.tar.zst
+          get "$ls_id" 'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst'  jrtechdesk-suporte.pkg.tar.zst
           echo "COMMIT=$commit" >> "$GITHUB_ENV"
+
+      - name: Conferir o rascunho contra os artefatos aprovados
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -ra pacotes <<<"$PACOTES"
+          extras=(SHA256SUMS.txt PROVENIENCIA.json
+            jrtechdesk-update.json jrtechdesk-update.json.sig
+            jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig)
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > release.json
+          [ "$(jq -r .draft release.json)" = true ] || { echo "::error::a release $RELEASE_ID não é mais rascunho"; exit 1; }
+          jq -r '.assets[].name' release.json | sort > nomes.txt
+          printf '%s\n' "${pacotes[@]}" "${extras[@]}" | sort > permitidos.txt
+          inesperados="$(comm -23 nomes.txt permitidos.txt)"
+          [ -z "$inesperados" ] || { echo "::error::arquivos inesperados no rascunho: $inesperados"; exit 1; }
+          # Cada pacote do rascunho precisa ser byte a byte o artefato aprovado. Um .exe
+          # assinado com Authenticode entra pelo fluxo de assinatura na build (PR do
+          # certificado), nunca trocado à mão no rascunho.
+          for nome in "${pacotes[@]}"; do
+            esperado="$(sha256sum "aprovados/$nome" | cut -d' ' -f1)"
+            digest="$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .digest // ""' release.json)"
+            [ "$digest" = "sha256:$esperado" ] \
+              || { echo "::error::$nome no rascunho ($digest) não é o artefato da build (sha256:$esperado)"; exit 1; }
+          done
+          mkdir -p out
+          cp aprovados/* out/
+          # Manifestos já assinados numa tentativa anterior: baixados para conferir. Metade de
+          # um par (json sem sig ou o contrário) é apagada e o par é refeito.
+          for base in jrtechdesk-update.json jrtechdesk-suporte-update.json; do
+            tem_json="$(grep -cxF "$base" nomes.txt || true)"
+            tem_sig="$(grep -cxF "$base.sig" nomes.txt || true)"
+            if [ "$tem_json" = 1 ] && [ "$tem_sig" = 1 ]; then
+              for nome in "$base" "$base.sig"; do
+                url="$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .url' release.json)"
+                gh api -H 'Accept: application/octet-stream' "$url" > "out/$nome"
+              done
+            elif [ "$tem_json" = 1 ] || [ "$tem_sig" = 1 ]; then
+              for nome in "$base" "$base.sig"; do
+                asset="$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .id' release.json)"
+                if [ -n "$asset" ]; then
+                  echo "::warning::apagando $nome (par incompleto) para assinar de novo"
+                  gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset}"
+                fi
+              done
+            fi
+          done
+          ls -la out
 
       - name: Checkout do commit das builds
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -268,41 +383,7 @@ jobs:
         env:
           RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.JRTECH_UPDATE_ED25519_SEED }}
           RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ vars.JRTECH_UPDATE_ED25519_PUBLIC_KEY }}
-        run: python src/res/update/generate_update_metadata.py check-key
-
-      - name: Baixar e conferir o rascunho
-        shell: bash
-        run: |
-          set -euo pipefail
-          read -ra pacotes <<<"$PACOTES"
-          extras=(SHA256SUMS.txt PROVENIENCIA.json
-            jrtechdesk-update.json jrtechdesk-update.json.sig
-            jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig)
-          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | sort > nomes.txt
-          printf '%s\n' "${pacotes[@]}" "${extras[@]}" | sort > permitidos.txt
-          inesperados="$(comm -23 nomes.txt permitidos.txt)"
-          [ -z "$inesperados" ] || { echo "::error::arquivos inesperados no rascunho: $inesperados"; exit 1; }
-          mkdir -p out
-          for nome in "${pacotes[@]}"; do
-            grep -qxF "$nome" nomes.txt || { echo "::error::falta $nome no rascunho"; exit 1; }
-            gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$nome" -D out
-            esperado="$(jq -er --arg n "$nome" '.arquivos[$n]' prov/PROVENIENCIA.json)"
-            obtido="$(sha256sum "out/$nome" | cut -d' ' -f1)"
-            [ "$obtido" = "$esperado" ] && continue
-            # Só um .exe pode mudar, e só se foi assinado com Authenticode válido.
-            [[ "$nome" == *.exe ]] || { echo "::error::$nome mudou depois do preparar ($obtido, esperado $esperado)"; exit 1; }
-            command -v osslsigncode >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y -qq osslsigncode; }
-            osslsigncode verify -in "out/$nome" \
-              || { echo "::error::$nome mudou depois do preparar e não tem assinatura Authenticode válida"; exit 1; }
-            echo "::notice::$nome substituído por versão com assinatura Authenticode válida ($obtido)"
-          done
-          for nome in jrtechdesk-update.json jrtechdesk-update.json.sig \
-                      jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig; do
-            if grep -qxF "$nome" nomes.txt; then
-              gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$nome" -D out
-            fi
-          done
-          ls -la out
+        run: python src/res/update/generate_update_metadata.py check-key --rust-source src/src/update_metadata.rs
 
       - name: Assinar o arquivo de atualização
         env:
@@ -314,13 +395,11 @@ jobs:
           gerador=src/res/update/generate_update_metadata.py
           base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download"
           # Um arquivo por modo, com package_id próprio: o completo instalado só aceita o
-          # completo, e o suporte portátil só aceita o suporte. Numa nova tentativa, o que
-          # já foi assinado é conferido em vez de assinado de novo.
+          # completo, e o suporte portátil só aceita o suporte. Numa nova tentativa, o par
+          # que já foi assinado é conferido em vez de assinado de novo.
           assinar() { # package-id exe metadata
             if [ -f "./out/$3" ] && [ -f "./out/$3.sig" ]; then
               echo "$3 já existe no rascunho; conferindo"
-            elif [ -f "./out/$3" ] || [ -f "./out/$3.sig" ]; then
-              echo "::error::o rascunho tem só metade de $3 (json/sig); apague o que sobrou e rode de novo"; exit 1
             else
               python "$gerador" sign \
                 --artifact windows x86_64 exe "./out/$2" \
@@ -349,19 +428,36 @@ jobs:
         run: |
           set -euo pipefail
           read -ra pacotes <<<"$PACOTES"
-          # Os .exe podem ter sido trocados pelos assinados: refaz a lista de SHA-256.
           (cd out && sha256sum -- "${pacotes[@]}" > SHA256SUMS.txt)
-          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber \
-            out/jrtechdesk-update.json out/jrtechdesk-update.json.sig \
-            out/jrtechdesk-suporte-update.json out/jrtechdesk-suporte-update.json.sig \
-            out/SHA256SUMS.txt
-          # Se a tag já existir, ela precisa apontar para o commit das builds.
-          if ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null)"; then
+          finais=(jrtechdesk-update.json jrtechdesk-update.json.sig
+            jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig SHA256SUMS.txt)
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "${finais[@]/#/out/}"
+          # Reconfere, pelo ID, tudo o que vai ficar público, logo antes de publicar.
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > release.json
+          [ "$(jq -r .draft release.json)" = true ] || { echo "::error::a release $RELEASE_ID não é mais rascunho"; exit 1; }
+          [ "$(jq -r .tag_name release.json)" = "$TAG" ] || { echo "::error::a tag do rascunho mudou"; exit 1; }
+          [ "$(jq -r .target_commitish release.json)" = "$COMMIT" ] || { echo "::error::o alvo do rascunho mudou"; exit 1; }
+          for nome in "${pacotes[@]}" "${finais[@]}"; do
+            esperado="sha256:$(sha256sum "out/$nome" | cut -d' ' -f1)"
+            digest="$(jq -r --arg n "$nome" '[.assets[] | select(.name == $n)] | if length == 1 then .[0].digest // "" else "" end' release.json)"
+            [ "$digest" = "$esperado" ] || { echo "::error::$nome no rascunho ($digest) difere do conferido ($esperado)"; exit 1; }
+          done
+          # Uma tag que já exista precisa apontar para o commit das builds. 404 = ainda não
+          # existe (a publicação cria no alvo conferido); qualquer outro erro para tudo.
+          if ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>erro.txt)"; then
             alvo="$(jq -r .object.sha <<<"$ref")"
             if [ "$(jq -r .object.type <<<"$ref")" = tag ]; then
               alvo="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${alvo}" --jq .object.sha)"
             fi
             [ "$alvo" = "$COMMIT" ] || { echo "::error::a tag $TAG aponta para $alvo, não para $COMMIT"; exit 1; }
+          elif ! grep -q 'HTTP 404' erro.txt; then
+            echo "::error::não deu para conferir a tag $TAG"; cat erro.txt; exit 1
           fi
-          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" -F draft=false -f make_latest=true > /dev/null
+          ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}")"
+          alvo="$(jq -r .object.sha <<<"$ref")"
+          if [ "$(jq -r .object.type <<<"$ref")" = tag ]; then
+            alvo="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${alvo}" --jq .object.sha)"
+          fi
+          [ "$alvo" = "$COMMIT" ] || { echo "::error::publicada, mas a tag $TAG aponta para $alvo e não para $COMMIT; verifique já"; exit 1; }
           echo "Publicada: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
