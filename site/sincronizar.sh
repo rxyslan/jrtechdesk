@@ -121,11 +121,15 @@ if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
     --arg t "$tag" '{versao: $v, tag: $t, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
   chmod -R a+rX "$tmp"
   for nome in "${ARQUIVOS[@]}" versao.json; do
-    if ! cmp -s "$tmp/$nome" "$destino/$nome"; then
+    if [[ -L "$destino/$nome" ]] || ! cmp -s "$tmp/$nome" "$destino/$nome"; then
       mv -fT "$tmp/$nome" "$destino/$nome"
       echo "$tag: $nome reparado"
     fi
   done
+  if ! publicacao_completa "$destino"; then
+    echo "$tag: o reparo não deixou a versão publicada íntegra" >&2
+    exit 1
+  fi
   exit 0
 fi
 

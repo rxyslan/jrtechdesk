@@ -41,6 +41,10 @@ install -m 0644 Caddyfile "$novo/"
 install -m 0755 sincronizar.sh "$novo/"
 install -m 0644 jrtechdesk-site-sync.service jrtechdesk-site-sync.timer "$novo/"
 hash_index=$(sha256sum "$BASE/$www_nova/index.html" | cut -d' ' -f1)
+# Identificador só do contêiner novo: a checagem final só aceita resposta que venha dele,
+# e não de outro processo que esteja ocupando a porta 80.
+site_id=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+[[ ${#site_id} -eq 32 ]]
 
 docker run --rm -e JRTECH_SITE_ID=validacao -v "$novo/Caddyfile":/etc/caddy/Caddyfile:ro \
   "$CADDY_IMAGEM" caddy validate --config /etc/caddy/Caddyfile
@@ -57,24 +61,32 @@ if [[ -f "$BASE/Caddyfile" ]]; then
   cp -p "$BASE/Caddyfile" "$caddyfile_backup"
 fi
 
+# Se o Docker não responder aqui, o script para antes de mexer em qualquer coisa.
+cid=$(docker ps -a -q --no-trunc --filter "name=^/${CONTAINER}\$")
 anterior=
-if cid=$(docker container inspect --format '{{.Id}}' "$CONTAINER" 2>/dev/null); then
-  anterior="$CONTAINER-anterior-${cid:0:12}"
-  docker rename "$CONTAINER" "$anterior"
-  if ! docker stop "$anterior" >/dev/null; then
-    docker rename "$anterior" "$CONTAINER"
-    exit 1
-  fi
-fi
+novo_id=
+em_recuperacao=
 
 # --- Recuperação: cada passo é tentado mesmo se um anterior falhar. ---
 voltar() {
-  trap - ERR
+  # Só o shell principal recupera, e uma vez só (com set -E o trap também dispara em
+  # substituições de comando).
+  [[ "$BASHPID" == "$$" ]] || exit 1
+  [[ -z "$em_recuperacao" ]] || exit 1
+  em_recuperacao=1
+  trap - ERR INT TERM HUP
   set +e
   local falhou=
-  echo "A instalação falhou. Voltando à instalação anterior." >&2
-  docker logs --tail 20 "$CONTAINER" >&2 2>/dev/null
-  docker rm -f "$CONTAINER" >/dev/null 2>&1
+  echo "A instalação falhou ou foi interrompida. Voltando à instalação anterior." >&2
+  # Remove só um contêiner criado por esta execução, nunca o original ($cid).
+  if [[ -z "$novo_id" ]]; then
+    novo_id=$(docker ps -a -q --no-trunc --filter "name=^/${CONTAINER}\$" 2>/dev/null)
+    [[ "$novo_id" != "$cid" ]] || novo_id=
+  fi
+  if [[ -n "$novo_id" ]]; then
+    docker logs --tail 20 "$novo_id" >&2 2>/dev/null
+    docker rm -f "$novo_id" >/dev/null 2>&1 || falhou=1
+  fi
   if [[ -n "$www_legado" ]]; then
     { [[ ! -e "$BASE/www" ]] || rm -f -- "$BASE/www"; } && mv -T "$BASE/$www_legado" "$BASE/www" || falhou=1
   elif [[ -n "$www_anterior" ]]; then
@@ -85,7 +97,10 @@ voltar() {
       mv -T "$BASE/Caddyfile.restaurando" "$BASE/Caddyfile" || falhou=1
   fi
   if [[ -n "$anterior" ]]; then
-    docker rename "$anterior" "$CONTAINER" && docker start "$CONTAINER" >/dev/null || falhou=1
+    if docker container inspect "$anterior" >/dev/null 2>&1; then
+      docker rename "$anterior" "$CONTAINER" || falhou=1
+    fi
+    docker start "$CONTAINER" >/dev/null || falhou=1
   fi
   if [[ -n "$falhou" ]]; then
     manter_novo=1
@@ -97,9 +112,14 @@ voltar() {
   fi
   exit 1
 }
-trap voltar ERR
+trap voltar ERR INT TERM HUP
 
-# --- Troca. ---
+# --- Troca. A partir daqui, qualquer erro ou interrupção chama voltar(). ---
+if [[ -n "$cid" ]]; then
+  anterior="$CONTAINER-anterior-${cid:0:12}"
+  docker rename "$CONTAINER" "$anterior"
+  docker stop "$anterior" >/dev/null
+fi
 if [[ -d "$BASE/www" && ! -L "$BASE/www" ]]; then
   www_legado="www-legado-$id_nova"
   mv -T "$BASE/www" "$BASE/$www_legado"
@@ -107,17 +127,14 @@ fi
 mv -T "$BASE/www.novo" "$BASE/www"
 mv -T "$novo/Caddyfile" "$BASE/Caddyfile"
 
-# Identificador só deste contêiner: a checagem abaixo só aceita resposta que venha dele,
-# e não de outro processo que esteja ocupando a porta 80.
-site_id=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
-docker run -d --name "$CONTAINER" --restart unless-stopped --network host \
+novo_id=$(docker run -d --name "$CONTAINER" --restart unless-stopped --network host \
   --log-driver json-file --log-opt max-size=10m --log-opt max-file=3 \
   -e JRTECH_SITE_ID="$site_id" \
   -v "$BASE":/site:ro \
   -v "$BASE/Caddyfile":/etc/caddy/Caddyfile:ro \
   -v jrtechdesk-site-dados:/data \
   -v jrtechdesk-site-config:/config \
-  "$CADDY_IMAGEM" >/dev/null
+  "$CADDY_IMAGEM")
 
 # Aceita só: curl sem erro, status 200, identificador deste contêiner e a página nova.
 servindo=
@@ -133,7 +150,7 @@ for _ in $(seq 1 15); do
   sleep 1
 done
 [[ -n "$servindo" ]] || voltar
-trap - ERR
+trap - ERR INT TERM HUP
 
 # --- Caddy novo confirmado. ---
 if [[ -n "$anterior" ]]; then

@@ -49,6 +49,9 @@ o HTTPS fica no Caddy de borda que já recebe as portas 80/443 públicas da rede
   ```
 
   O Caddy de borda emite o certificado e redireciona HTTP → HTTPS sozinho.
+- Só configure a borda **depois** de instalar esta versão no CT 106. A primeira versão do
+  site usava HTTPS no próprio CT e, atrás da borda, entraria em loop de redirecionamento
+  (o instalador volta para ela se a instalação falhar).
 - Teste de dentro da rede, direto no CT 106:
   `curl -H 'Host: baixar.desbloqueiorepidclass.com.br' http://192.168.15.250/`.
 
