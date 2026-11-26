@@ -77,7 +77,8 @@ voltar() {
   [[ "$BASHPID" == "$$" ]] || exit 1
   [[ -z "$em_recuperacao" ]] || exit 1
   em_recuperacao=1
-  trap - ERR INT TERM HUP
+  trap - ERR
+  trap '' INT TERM HUP PIPE # um segundo Ctrl-C não interrompe a recuperação
   set +e
   local falhou=
   echo "A instalação falhou ou foi interrompida. Voltando à instalação anterior." >&2

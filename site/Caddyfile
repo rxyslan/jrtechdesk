@@ -49,6 +49,10 @@ http://baixar.desbloqueiorepidclass.com.br {
 
 	handle {
 		root * /site/www
+		header {
+			Cache-Control "no-cache"
+			match status 200 304
+		}
 		file_server
 	}
 
