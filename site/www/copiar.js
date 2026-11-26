@@ -12,7 +12,7 @@ function selecionar(el) {
 function anunciar(texto) {
   if (!aviso) return;
   aviso.textContent = '';
-  requestAnimationFrame(() => { aviso.textContent = texto; });
+  setTimeout(() => { aviso.textContent = texto; }, 100);
 }
 
 for (const pre of document.querySelectorAll('pre[data-copiar]')) {

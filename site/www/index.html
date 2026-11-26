@@ -30,7 +30,7 @@
 
       <a class="botao" href="/download/JrTechDesk-suporte.exe" data-arquivo="JrTechDesk-suporte.exe" download>
         <span class="botao-titulo">Baixar JrTechDesk Suporte</span>
-        <span class="botao-sub">Windows 10 e 11 · 64 bits<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
+        <span class="botao-sub">Windows 10 e 11 · 64&nbsp;bits<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
       </a>
       <p class="ficha-arquivo"><span class="rotulo-inline">Arquivo</span> JrTechDesk-suporte.exe</p>
       <p class="versao" data-versao hidden></p>
@@ -41,7 +41,7 @@
       <h2 class="rotulo">Passo a passo</h2>
       <ol class="passos">
         <li><div><strong>Baixe.</strong> Clique em Baixar JrTechDesk Suporte.</div></li>
-        <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece no canto de cima do navegador. Se não aparecer, aperte <kbd>Ctrl</kbd> + <kbd>J</kbd> ou abra a pasta Downloads. Se aparecer um aviso do navegador ou do Windows, pare e <a href="#ajuda">veja a ajuda</a>.</div></li>
+        <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece no canto de cima do navegador. Se não aparecer, aperte <kbd>Ctrl</kbd> + <kbd>J</kbd> ou abra a pasta Downloads. Se aparecer um aviso do navegador ou do Windows, não continue: avise o técnico ou procure o suporte da Jrtech (<a href="#aviso">mais detalhes</a>).</div></li>
         <li><div><strong>Diga ao técnico o ID e a senha.</strong> Eles aparecem na tela do programa. Quando ele pedir, clique em Aceitar. Para terminar o atendimento, feche o programa.</div></li>
       </ol>
     </div>
@@ -49,20 +49,20 @@
 
   <section class="apoio" aria-label="Segurança e ajuda">
     <p class="seguranca"><strong>Segurança.</strong> Passe o ID e a senha só para o técnico da Jrtech que está atendendo você. Se alguém ligar dizendo ser da Jrtech sem você ter pedido atendimento, desligue e procure o suporte da Jrtech.</p>
-    <details class="ajuda" id="ajuda">
+    <details class="ajuda" id="ajuda" open>
       <summary>Não encontrei o arquivo ou apareceu um aviso</summary>
       <ul>
         <li>Aperte <kbd>Ctrl</kbd> + <kbd>J</kbd> e abra o arquivo que você acabou de baixar desta página. O nome pode terminar em <span class="arquivo-nome">(1).exe</span>.</li>
-        <li>Apareceu um aviso do navegador ou do Windows dizendo que o arquivo pode ser perigoso, que não é baixado com frequência ou que “o Windows protegeu o computador”? Não continue sozinho. Avise o técnico que está atendendo você ou procure o suporte da Jrtech.</li>
+        <li id="aviso">Apareceu um aviso do navegador ou do Windows dizendo que o arquivo pode ser perigoso, que não é baixado com frequência ou que “o Windows protegeu o computador”? Não continue sozinho. Avise o técnico que está atendendo você ou procure o suporte da Jrtech.</li>
         <li>O programa funciona no Windows 10 e 11 de 64 bits.</li>
       </ul>
     </details>
   </section>
 
   <section class="tecnico" aria-labelledby="titulo-tecnico">
-    <p class="rotulo"><span aria-hidden="true">§02 · </span>Técnicos</p>
+    <p class="rotulo" aria-hidden="true">§02 · Técnicos</p>
     <h2 id="titulo-tecnico">Para técnicos</h2>
-    <p class="intro">O <strong>Completo</strong> acessa outras máquinas; o <strong>Suporte</strong> só recebe conexões. Todos os pacotes são para 64 bits (x86-64). Os comandos supõem o arquivo em <code>~/Downloads</code> com o nome original; se o navegador salvou em outro lugar ou com outro nome, ajuste o caminho.</p>
+    <p class="intro">O <strong>Completo</strong> acessa outras máquinas; o <strong>Suporte</strong> só recebe conexões. Todos os pacotes são para 64 bits (x86-64). Os comandos supõem os arquivos em <code>~/Downloads</code> com o nome original. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo, para conferir e instalar o mesmo arquivo.</p>
 
     <div class="sistemas">
       <article class="sistema">
@@ -115,7 +115,7 @@
         <h3>Conferir os arquivos</h3>
         <div class="verificacao">
           <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes e rode o comando abaixo. Confira se aparece <code>OK</code> ao lado do nome do pacote que você vai instalar.</p>
-          <pre class="comando" data-copiar><code>cd ~/Downloads &amp;&amp; sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
+          <pre class="comando" data-copiar><code>cd ~/Downloads &amp;&amp; LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
         </div>
       </article>
     </div>
