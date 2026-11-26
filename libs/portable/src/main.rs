@@ -312,17 +312,21 @@ fn main() -> Result<(), String> {
 
     let mut ui = false;
     // JrTechDesk: aberto pela versão antiga depois de ela trocar o .exe (ver
-    // src/platform/windows/verified_update.rs). A cópia anterior (.old) só é apagada depois
-    // que esta versão leu o pacote, extraiu e o app abriu sem fechar com erro; se algo
-    // falhar, ela volta para o lugar.
+    // src/platform/windows/verified_update.rs). Se ler o pacote, extrair ou abrir o app
+    // falhar, a cópia anterior (.old) volta para o lugar. Ela só é apagada se o app ainda
+    // estiver rodando depois de alguns segundos; se ele sair cedo, a cópia fica guardada.
     #[cfg(windows)]
     let updating = std::env::var_os(JRTECH_UPDATE_WAIT_PID_ENV_KEY).is_some();
+    #[cfg(windows)]
+    let silent = args.contains(&"--silent-install".to_owned());
     let reader = match BinaryReader::new() {
         Ok(reader) => reader,
         Err(e) => {
             #[cfg(windows)]
-            if updating && win::restore_previous_copy() {
+            if updating && win::restore_previous_copy(true) {
                 std::process::exit(1);
+            } else if !silent {
+                win::show_error("O JrTechDesk não conseguiu ler o próprio pacote.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
             }
             return Err(e);
         }
@@ -332,9 +336,14 @@ fn main() -> Result<(), String> {
     #[cfg(windows)]
     if let Some(dir) = dirs::data_local_dir() {
         if !win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe)) {
-            // Extrair agora abriria a versão antiga ou uma mistura das duas. O exe novo já
-            // está no lugar, então basta abrir de novo depois que a versão antiga fechar.
-            win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            // Extrair agora abriria a versão antiga ou uma mistura das duas. Põe a versão
+            // anterior de volta no lugar (sem abrir: ela ainda está rodando); a atualização
+            // pode ser feita de novo depois.
+            if win::restore_previous_copy(false) {
+                win::show_error("A versão anterior do JrTechDesk ainda estava aberta, então a atualização não foi feita e a versão anterior foi mantida.\n\nFeche o JrTechDesk e atualize de novo.");
+            } else {
+                win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            }
             std::process::exit(1);
         }
     }
@@ -358,17 +367,31 @@ fn main() -> Result<(), String> {
     };
     #[cfg(windows)]
     if updating {
-        if child.is_some_and(win::app_survived_start) {
-            win::remove_previous_copy();
-        } else if win::restore_previous_copy() {
-            std::process::exit(1);
-        } else {
-            win::show_error("A atualização do JrTechDesk não pôde terminar e a versão anterior não foi encontrada.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
-            std::process::exit(1);
+        match child {
+            // Ainda rodando depois de alguns segundos: a versão nova subiu.
+            Some(child) => {
+                if win::app_still_running(child) {
+                    win::remove_previous_copy();
+                }
+                // Saiu cedo (por qualquer motivo, inclusive outra janela do JrTechDesk aberta)
+                // ou não deu para saber: a cópia anterior fica guardada ao lado, sem restaurar.
+            }
+            None => {
+                if win::restore_previous_copy(true) {
+                    std::process::exit(1);
+                }
+                win::show_error("A atualização do JrTechDesk não pôde terminar e a versão anterior não foi encontrada.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
+                std::process::exit(1);
+            }
         }
     } else if !extracted {
-        win::show_error("O JrTechDesk não conseguiu preparar os próprios arquivos.\n\nFeche o JrTechDesk que estiver aberto e abra este arquivo de novo.");
+        if !silent {
+            win::show_error("O JrTechDesk não conseguiu preparar os próprios arquivos.\n\nFeche o JrTechDesk que estiver aberto e abra este arquivo de novo.");
+        }
         std::process::exit(1);
+    } else if child.is_some() {
+        // Abriu normalmente com esta versão: sobras de uma atualização anterior podem sair.
+        win::remove_previous_copy();
     }
     #[cfg(not(windows))]
     let _ = (extracted, child);
@@ -458,21 +481,24 @@ mod win {
         path.into()
     }
 
-    /// O app aberto pela versão nova continua rodando (ou terminou sem erro) depois de alguns
-    /// segundos? Um app que fecha com erro logo ao abrir conta como atualização que falhou.
-    pub(super) fn app_survived_start(mut child: std::process::Child) -> bool {
-        let start = std::time::Instant::now();
-        while start.elapsed() < std::time::Duration::from_secs(10) {
+    /// O app aberto pela versão nova continua rodando depois de alguns segundos? `false`
+    /// quando ele saiu (com qualquer código) ou quando não deu para consultar.
+    pub(super) fn app_still_running(mut child: std::process::Child) -> bool {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
             match child.try_wait() {
-                Ok(Some(status)) => return status.success(),
+                Ok(None) if std::time::Instant::now() >= deadline => return true,
                 Ok(None) => std::thread::sleep(std::time::Duration::from_millis(250)),
+                Ok(Some(status)) => {
+                    eprintln!("new version exited early: {}", status);
+                    return false;
+                }
                 Err(e) => {
                     eprintln!("failed to check the new version: {}", e);
-                    return true;
+                    return false;
                 }
             }
         }
-        true
     }
 
     /// A versão nova extraiu e abriu: a cópia anterior não é mais necessária.
@@ -488,9 +514,10 @@ mod win {
         }
     }
 
-    /// A versão nova não conseguiu extrair ou abrir: põe a anterior de volta no lugar e a
-    /// abre. Retorna `false` se não havia cópia anterior ou a troca falhou.
-    pub(super) fn restore_previous_copy() -> bool {
+    /// A versão nova não conseguiu ler, extrair ou abrir: põe a anterior de volta no lugar
+    /// e, com `start`, avisa e a abre. Retorna `false` se não havia cópia anterior ou a troca
+    /// falhou.
+    pub(super) fn restore_previous_copy(start: bool) -> bool {
         let Ok(exe) = std::env::current_exe() else {
             return false;
         };
@@ -509,6 +536,9 @@ mod win {
             eprintln!("failed to restore {}: {}", old.display(), e);
             let _ = fs::rename(&failed, &exe);
             return false;
+        }
+        if !start {
+            return true;
         }
         show_error("A atualização do JrTechDesk não pôde terminar. A versão anterior foi restaurada e será aberta agora.");
         if let Err(e) = Command::new(&exe)

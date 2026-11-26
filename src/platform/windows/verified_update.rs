@@ -82,7 +82,9 @@ pub fn update_portable_to_verified(
     let result = update_file
         .verify_size(expected_size)
         .and_then(|_| update_file.path_str().map(|p| p.to_owned()))
-        .and_then(|new_exe| replace_portable_exe(&target, Path::new(&new_exe), expected_size));
+        .and_then(|new_exe| {
+            replace_portable_exe(&target, Path::new(&new_exe), expected_size, expected_sha256)
+        });
     update_file.cleanup();
     let old = result?;
 
@@ -106,7 +108,12 @@ fn portable_sibling(target: &Path, suffix: &str) -> PathBuf {
 /// Grava a versão nova ao lado (`.new`), confere o tamanho e só então troca com
 /// `ReplaceFileW`, que põe a nova no lugar e guarda a anterior (`.old`) numa operação só
 /// do sistema de arquivos. Retorna onde ficou a versão anterior.
-fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> ResultType<PathBuf> {
+fn replace_portable_exe(
+    target: &Path,
+    new_exe: &Path,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> ResultType<PathBuf> {
     let staged = portable_sibling(target, ".new");
     let old = portable_sibling(target, ".old");
     if staged.exists() {
@@ -129,6 +136,12 @@ fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> Re
             bail!("falha ao gravar a versão nova em {}: {}", staged.display(), e);
         }
     }
+    // A cópia ao lado é a que vai ser executada: grava no disco e confere o SHA-256 de novo,
+    // com o arquivo aberto sem permitir escrita de outros processos.
+    if let Err(e) = sync_and_verify_staged(&staged, expected_sha256) {
+        allow_err!(std::fs::remove_file(&staged));
+        return Err(e);
+    }
     if old.exists() {
         if let Err(e) = std::fs::remove_file(&old) {
             allow_err!(std::fs::remove_file(&staged));
@@ -147,10 +160,28 @@ fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> Re
     Ok(old)
 }
 
+fn sync_and_verify_staged(staged: &Path, expected_sha256: &str) -> ResultType<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows::Win32::Storage::FileSystem::{FILE_SHARE_DELETE, FILE_SHARE_READ};
+
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(staged)
+        .and_then(|file| file.sync_all())
+        .map_err(|e| anyhow!("falha ao gravar {} no disco: {}", staged.display(), e))?;
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ.0 | FILE_SHARE_DELETE.0)
+        .open(staged)
+        .map_err(|e| anyhow!("falha ao abrir {}: {}", staged.display(), e))?;
+    crate::update_hash::verify_sha256_reader(&mut file, expected_sha256)
+        .map_err(|e| anyhow!("a cópia {} não confere: {:?}", staged.display(), e))
+}
+
 fn swap_portable_exe(target: &Path, staged: &Path, old: &Path) -> ResultType<()> {
     use windows::{
         core::HSTRING,
-        Win32::Storage::FileSystem::{ReplaceFileW, REPLACEFILE_WRITE_THROUGH},
+        Win32::Storage::FileSystem::{ReplaceFileW, REPLACE_FILE_FLAGS},
     };
 
     unsafe {
@@ -158,7 +189,7 @@ fn swap_portable_exe(target: &Path, staged: &Path, old: &Path) -> ResultType<()>
             &HSTRING::from(target),
             &HSTRING::from(staged),
             &HSTRING::from(old),
-            REPLACEFILE_WRITE_THROUGH,
+            REPLACE_FILE_FLAGS(0),
             None,
             None,
         )
