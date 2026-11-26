@@ -62,6 +62,12 @@ if [[ "$atual" == "releases/$tag" ]] && publicacao_completa "$destino"; then
   exit 0
 fi
 if [[ "$atual" == "releases/$tag" ]]; then
+  for nome in "${ARQUIVOS[@]}" versao.json; do
+    if [[ -d "$destino/$nome" && ! -L "$destino/$nome" ]]; then
+      echo "$tag: $destino/$nome é um diretório; corrija à mão (nada foi baixado)." >&2
+      exit 1
+    fi
+  done
   echo "$tag: a versão publicada está incompleta; baixando de novo." >&2
 fi
 if [[ -e "$BASE/download" && ! -L "$BASE/download" ]]; then

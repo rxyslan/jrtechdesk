@@ -30,9 +30,12 @@ id_nova=$(date +%Y%m%d%H%M%S)-$$
 www_nova="www-$id_nova"
 novo=$(mktemp -d "$BASE/.instalando.XXXXXX")
 manter_novo=
-trap 'if [[ -z "$manter_novo" ]]; then rm -rf -- "$novo"; fi' EXIT
+limpar_preparo= # só remove a página preparada se a troca nem começou
+trap 'if [[ -z "$manter_novo" ]]; then rm -rf -- "$novo"; fi
+  if [[ -n "$limpar_preparo" ]]; then rm -rf -- "${BASE:?}/$www_nova" "$BASE/www.novo"; fi' EXIT
 
 # --- Preparação: nada do que está no ar muda aqui. ---
+limpar_preparo=1
 rm -f -- "$BASE/www.novo"
 mkdir -p "$BASE/$www_nova/img"
 install -m 0644 www/img/*.png "$BASE/$www_nova/img/"
@@ -84,7 +87,7 @@ voltar() {
     [[ "$novo_id" != "$cid" ]] || novo_id=
   fi
   if [[ -n "$novo_id" ]]; then
-    docker logs --tail 20 "$novo_id" >&2 2>/dev/null
+    docker logs --tail 20 "$novo_id" >&2 2>&1
     docker rm -f "$novo_id" >/dev/null 2>&1 || falhou=1
   fi
   if [[ -n "$www_legado" ]]; then
@@ -113,6 +116,7 @@ voltar() {
   exit 1
 }
 trap voltar ERR INT TERM HUP
+limpar_preparo=
 
 # --- Troca. A partir daqui, qualquer erro ou interrupção chama voltar(). ---
 if [[ -n "$cid" ]]; then
@@ -121,8 +125,8 @@ if [[ -n "$cid" ]]; then
   docker stop "$anterior" >/dev/null
 fi
 if [[ -d "$BASE/www" && ! -L "$BASE/www" ]]; then
+  mv -T "$BASE/www" "$BASE/www-legado-$id_nova"
   www_legado="www-legado-$id_nova"
-  mv -T "$BASE/www" "$BASE/$www_legado"
 fi
 mv -T "$BASE/www.novo" "$BASE/www"
 mv -T "$novo/Caddyfile" "$BASE/Caddyfile"

@@ -54,6 +54,7 @@ http://baixar.desbloqueiorepidclass.com.br {
 
 	handle_errors {
 		header Cache-Control "no-store"
+		header X-Content-Type-Options nosniff
 		header -Content-Disposition
 		respond "{err.status_code} {err.status_text}"
 	}
