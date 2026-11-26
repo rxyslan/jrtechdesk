@@ -357,7 +357,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: jrtechdesk-deb-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}
+          name: jrtechdesk-deb-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}-jr${{ inputs.versao-jr }}
           path: jrtechdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}.deb
           if-no-files-found: error
 
@@ -388,6 +388,6 @@ jobs:
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jrtechdesk-archlinux-x86_64-${{ inputs.modo }}-${{ inputs.tema }}
+          name: jrtechdesk-archlinux-x86_64-${{ inputs.modo }}-${{ inputs.tema }}-jr${{ inputs.versao-jr }}
           path: res/jrtechdesk-${{ env.VERSION }}*.zst
           if-no-files-found: error

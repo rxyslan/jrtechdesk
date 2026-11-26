@@ -96,16 +96,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          check_run() { # id workflow padrão-do-log exige-testes; imprime o commit da build
-            local id="$1" wf="$2" pattern="$3" testes="$4" info
+          # A versao-jr, o modo e o tema ficam no nome do artefato de cada build (vêm dos mesmos
+          # inputs da compilação); a etapa de download exige o nome exato.
+          check_run() { # id arquivo-do-workflow exige-testes; imprime o commit da build
+            local id="$1" wf="$2" testes="$3" info
             [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de build inválido: '$id'" >&2; return 1; }
             info="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
-            [ "$(jq -r .name <<<"$info")" = "$wf" ] || { echo "::error::build $id não é do workflow '$wf'" >&2; return 1; }
+            [ "$(jq -r .path <<<"$info")" = "$wf" ] || { echo "::error::build $id não é de $wf" >&2; return 1; }
             [ "$(jq -r .conclusion <<<"$info")" = "success" ] || { echo "::error::build $id não terminou com sucesso" >&2; return 1; }
-            # A versao-jr fica no log de cada build; confere que é a mesma desta release.
-            gh run view "$id" -R "$GITHUB_REPOSITORY" --log > "log-$id.txt"
-            grep -Eq "$pattern" "log-$id.txt" \
-              || { echo "::error::build $id não foi feita com versao-jr=$VERSAO_JR" >&2; return 1; }
             if [ "$testes" = sim ]; then
               # A build do Windows pode pular os testes (run-tests=false); a release não aceita.
               gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --paginate \
@@ -116,17 +114,18 @@ jobs:
             fi
             jq -r .head_sha <<<"$info"
           }
-          s1="$(check_run "$RUN_WIN_COMPLETO" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b" sim)"
-          s2="$(check_run "$RUN_WIN_SUPORTE" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b" sim)"
-          s3="$(check_run "$RUN_LINUX_COMPLETO" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b" nao)"
-          s4="$(check_run "$RUN_LINUX_SUPORTE" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b" nao)"
+          s1="$(check_run "$RUN_WIN_COMPLETO" .github/workflows/jrtechdesk-windows.yml sim)"
+          s2="$(check_run "$RUN_WIN_SUPORTE" .github/workflows/jrtechdesk-windows.yml sim)"
+          s3="$(check_run "$RUN_LINUX_COMPLETO" .github/workflows/jrtechdesk-linux.yml nao)"
+          s4="$(check_run "$RUN_LINUX_SUPORTE" .github/workflows/jrtechdesk-linux.yml nao)"
           if [ "$s1" != "$s2" ] || [ "$s1" != "$s3" ] || [ "$s1" != "$s4" ]; then
             echo "::error::as quatro builds precisam ser do mesmo commit ($s1 $s2 $s3 $s4)"; exit 1
           fi
           [[ "$s1" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit inválido: $s1"; exit 1; }
           echo "COMMIT=$s1" >> "$GITHUB_ENV"
           # Só sai release de commit que já está na main (revisado por PR).
-          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${s1}" --jq .status)"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${main_sha}...${s1}" --jq .status)"
           case "$status" in
             identical|behind) ;;
             *) echo "::error::o commit $s1 das builds não está na main ($status)"; exit 1 ;;
@@ -164,12 +163,12 @@ jobs:
             [ "${#files[@]}" -eq 1 ] || { echo "::error::esperava 1 arquivo $3 na build $1, achei ${#files[@]}"; exit 1; }
             cp "${files[0]}" "out/$4"
           }
-          get "$RUN_WIN_COMPLETO"   'jrtechdesk-installer-x86_64-completo-*' '*.exe'     JrTechDesk-completo.exe
-          get "$RUN_WIN_SUPORTE"    'jrtechdesk-installer-x86_64-suporte-*'  '*.exe'     JrTechDesk-suporte.exe
-          get "$RUN_LINUX_COMPLETO" 'jrtechdesk-deb-x86_64-completo-*'       '*.deb'     jrtechdesk-completo.deb
-          get "$RUN_LINUX_SUPORTE"  'jrtechdesk-deb-x86_64-suporte-*'        '*.deb'     jrtechdesk-suporte.deb
-          get "$RUN_LINUX_COMPLETO" 'jrtechdesk-archlinux-x86_64-completo-*' '*.pkg.tar.zst' jrtechdesk-completo.pkg.tar.zst
-          get "$RUN_LINUX_SUPORTE"  'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst' jrtechdesk-suporte.pkg.tar.zst
+          get "$RUN_WIN_COMPLETO"   "jrtechdesk-installer-x86_64-completo-siin-jr${VERSAO_JR}" '*.exe'     JrTechDesk-completo.exe
+          get "$RUN_WIN_SUPORTE"    "jrtechdesk-installer-x86_64-suporte-siin-jr${VERSAO_JR}"  '*.exe'     JrTechDesk-suporte.exe
+          get "$RUN_LINUX_COMPLETO" "jrtechdesk-deb-x86_64-completo-siin-jr${VERSAO_JR}"       '*.deb'     jrtechdesk-completo.deb
+          get "$RUN_LINUX_SUPORTE"  "jrtechdesk-deb-x86_64-suporte-siin-jr${VERSAO_JR}"        '*.deb'     jrtechdesk-suporte.deb
+          get "$RUN_LINUX_COMPLETO" "jrtechdesk-archlinux-x86_64-completo-siin-jr${VERSAO_JR}" '*.pkg.tar.zst' jrtechdesk-completo.pkg.tar.zst
+          get "$RUN_LINUX_SUPORTE"  "jrtechdesk-archlinux-x86_64-suporte-siin-jr${VERSAO_JR}"  '*.pkg.tar.zst' jrtechdesk-suporte.pkg.tar.zst
           cd out
           read -ra pacotes <<<"$PACOTES"
           sha256sum -- "${pacotes[@]}" > SHA256SUMS.txt
@@ -202,6 +201,11 @@ jobs:
           | \`jrtechdesk-suporte.deb\` / \`.pkg.tar.zst\` | Cliente no Linux |
 
           \`PROVENIENCIA.json\` registra o commit, as builds e o SHA-256 de cada arquivo.
+
+          Linux (Debian/Ubuntu): vindo da 1.5.3-jr4 ou anterior, a atualização reativa o serviço
+          \`jrtechdesk\` mesmo que você o tenha desativado. Se for o caso, rode de novo
+          \`sudo systemctl disable --now jrtechdesk\`. Das próximas atualizações em diante, a
+          desativação é mantida.
           Código-fonte (AGPL-3.0): este repositório, no commit acima.
           EOF
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
@@ -263,20 +267,19 @@ jobs:
           [ "$(jq -er .tag prov/PROVENIENCIA.json)" = "$TAG" ] || { echo "::error::PROVENIENCIA.json é de outra tag"; exit 1; }
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit inválido no PROVENIENCIA.json"; exit 1; }
           [ "$ALVO" = "$commit" ] || { echo "::error::o rascunho aponta para $ALVO, mas as builds são de $commit"; exit 1; }
-          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${commit}" --jq .status)"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${main_sha}...${commit}" --jq .status)"
           case "$status" in
             identical|behind) ;;
             *) echo "::error::o commit $commit não está na main ($status)"; exit 1 ;;
           esac
-          conferir_build() { # id arquivo-do-workflow padrão-do-log exige-testes
-            local id="$1" wf="$2" pattern="$3" testes="$4" info
+          conferir_build() { # id arquivo-do-workflow exige-testes
+            local id="$1" wf="$2" testes="$3" info
             [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de build inválido: '$id'"; exit 1; }
             info="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
             [ "$(jq -r .path <<<"$info")" = "$wf" ] || { echo "::error::build $id não é de $wf"; exit 1; }
             [ "$(jq -r .conclusion <<<"$info")" = success ] || { echo "::error::build $id não terminou com sucesso"; exit 1; }
             [ "$(jq -r .head_sha <<<"$info")" = "$commit" ] || { echo "::error::build $id não é do commit $commit"; exit 1; }
-            gh run view "$id" -R "$GITHUB_REPOSITORY" --log > "log-$id.txt"
-            grep -Eq "$pattern" "log-$id.txt" || { echo "::error::build $id não foi feita com versao-jr=$VERSAO_JR"; exit 1; }
             if [ "$testes" = sim ]; then
               gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --paginate \
                 --jq '.jobs[].steps[] | select(.name == "Run the Rust tests") | .conclusion' > "testes-$id.txt"
@@ -297,16 +300,23 @@ jobs:
           ws_id="$(jq -er .builds.windows_suporte prov/PROVENIENCIA.json)"
           lc_id="$(jq -er .builds.linux_completo prov/PROVENIENCIA.json)"
           ls_id="$(jq -er .builds.linux_suporte prov/PROVENIENCIA.json)"
-          conferir_build "$wc_id" .github/workflows/jrtechdesk-windows.yml "JRTECH_RELEASE: ${VERSAO_JR}\b" sim
-          conferir_build "$ws_id" .github/workflows/jrtechdesk-windows.yml "JRTECH_RELEASE: ${VERSAO_JR}\b" sim
-          conferir_build "$lc_id" .github/workflows/jrtechdesk-linux.yml "JRTECH_RELEASE=${VERSAO_JR}\b" nao
-          conferir_build "$ls_id" .github/workflows/jrtechdesk-linux.yml "JRTECH_RELEASE=${VERSAO_JR}\b" nao
-          get "$wc_id" 'jrtechdesk-installer-x86_64-completo-*' '*.exe'          JrTechDesk-completo.exe
-          get "$ws_id" 'jrtechdesk-installer-x86_64-suporte-*'  '*.exe'          JrTechDesk-suporte.exe
-          get "$lc_id" 'jrtechdesk-deb-x86_64-completo-*'       '*.deb'          jrtechdesk-completo.deb
-          get "$ls_id" 'jrtechdesk-deb-x86_64-suporte-*'        '*.deb'          jrtechdesk-suporte.deb
-          get "$lc_id" 'jrtechdesk-archlinux-x86_64-completo-*' '*.pkg.tar.zst'  jrtechdesk-completo.pkg.tar.zst
-          get "$ls_id" 'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst'  jrtechdesk-suporte.pkg.tar.zst
+          conferir_build "$wc_id" .github/workflows/jrtechdesk-windows.yml sim
+          conferir_build "$ws_id" .github/workflows/jrtechdesk-windows.yml sim
+          conferir_build "$lc_id" .github/workflows/jrtechdesk-linux.yml nao
+          conferir_build "$ls_id" .github/workflows/jrtechdesk-linux.yml nao
+          get "$wc_id" "jrtechdesk-installer-x86_64-completo-siin-jr${VERSAO_JR}" '*.exe'          JrTechDesk-completo.exe
+          get "$ws_id" "jrtechdesk-installer-x86_64-suporte-siin-jr${VERSAO_JR}"  '*.exe'          JrTechDesk-suporte.exe
+          get "$lc_id" "jrtechdesk-deb-x86_64-completo-siin-jr${VERSAO_JR}"       '*.deb'          jrtechdesk-completo.deb
+          get "$ls_id" "jrtechdesk-deb-x86_64-suporte-siin-jr${VERSAO_JR}"        '*.deb'          jrtechdesk-suporte.deb
+          get "$lc_id" "jrtechdesk-archlinux-x86_64-completo-siin-jr${VERSAO_JR}" '*.pkg.tar.zst'  jrtechdesk-completo.pkg.tar.zst
+          get "$ls_id" "jrtechdesk-archlinux-x86_64-suporte-siin-jr${VERSAO_JR}"  '*.pkg.tar.zst'  jrtechdesk-suporte.pkg.tar.zst
+          # O registro de auditoria que vai a público precisa dizer exatamente o que foi baixado.
+          calculado='{}'
+          for nome in aprovados/*; do
+            calculado="$(jq --arg n "${nome#aprovados/}" --arg h "$(sha256sum "$nome" | cut -d' ' -f1)" '. + {($n): $h}' <<<"$calculado")"
+          done
+          jq -e --argjson c "$calculado" '.arquivos == $c' prov/PROVENIENCIA.json >/dev/null \
+            || { echo "::error::PROVENIENCIA.json não confere com os artefatos das builds"; exit 1; }
           echo "COMMIT=$commit" >> "$GITHUB_ENV"
 
       - name: Conferir o rascunho contra os artefatos aprovados
@@ -431,13 +441,31 @@ jobs:
           (cd out && sha256sum -- "${pacotes[@]}" > SHA256SUMS.txt)
           finais=(jrtechdesk-update.json jrtechdesk-update.json.sig
             jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig SHA256SUMS.txt)
-          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "${finais[@]/#/out/}"
-          # Reconfere, pelo ID, tudo o que vai ficar público, logo antes de publicar.
-          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > release.json
-          [ "$(jq -r .draft release.json)" = true ] || { echo "::error::a release $RELEASE_ID não é mais rascunho"; exit 1; }
-          [ "$(jq -r .tag_name release.json)" = "$TAG" ] || { echo "::error::a tag do rascunho mudou"; exit 1; }
-          [ "$(jq -r .target_commitish release.json)" = "$COMMIT" ] || { echo "::error::o alvo do rascunho mudou"; exit 1; }
-          for nome in "${pacotes[@]}" "${finais[@]}"; do
+          conferir_rascunho() { # o rascunho fixado continua rascunho, com a mesma tag e alvo
+            gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" > release.json
+            [ "$(jq -r .draft release.json)" = true ] || { echo "::error::a release $RELEASE_ID não é mais rascunho"; exit 1; }
+            [ "$(jq -r .tag_name release.json)" = "$TAG" ] || { echo "::error::a tag do rascunho mudou"; exit 1; }
+            [ "$(jq -r .target_commitish release.json)" = "$COMMIT" ] || { echo "::error::o alvo do rascunho mudou"; exit 1; }
+          }
+          # Upload pelo ID da release (não pela tag): apaga o anexo de mesmo nome e envia.
+          conferir_rascunho
+          for nome in "${finais[@]}"; do
+            antigo="$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .id' release.json)"
+            for asset in $antigo; do
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset}"
+            done
+            gh api -X POST -H 'Content-Type: application/octet-stream' --input "out/$nome" \
+              "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${nome}" > /dev/null
+          done
+          # Reconfere, pelo ID, tudo o que vai ficar público, logo antes de publicar: o conjunto
+          # exato de nomes e o digest de cada arquivo, inclusive o PROVENIENCIA.json.
+          conferir_rascunho
+          jq -r '.assets[].name' release.json | sort > nomes-finais.txt
+          printf '%s\n' "${pacotes[@]}" "${finais[@]}" PROVENIENCIA.json | sort > esperados.txt
+          cmp -s nomes-finais.txt esperados.txt \
+            || { echo "::error::o rascunho não tem exatamente os arquivos esperados"; diff nomes-finais.txt esperados.txt || true; exit 1; }
+          cp prov/PROVENIENCIA.json out/PROVENIENCIA.json
+          for nome in "${pacotes[@]}" "${finais[@]}" PROVENIENCIA.json; do
             esperado="sha256:$(sha256sum "out/$nome" | cut -d' ' -f1)"
             digest="$(jq -r --arg n "$nome" '[.assets[] | select(.name == $n)] | if length == 1 then .[0].digest // "" else "" end' release.json)"
             [ "$digest" = "$esperado" ] || { echo "::error::$nome no rascunho ($digest) difere do conferido ($esperado)"; exit 1; }
