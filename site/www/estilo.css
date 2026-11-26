@@ -1,41 +1,25 @@
 :root {
-  --fundo: #ffffff;
-  --fundo-alt: #f4f6f5;
-  --texto: #111816;
-  --suave: #4f5b57;
-  --linha: #dde3e0;
-  --linha-forte: #8a9590;
-  --link: #0a6e35;
-  --hero: #0d1714;
+  color-scheme: dark;
+  --fundo: #0e1311;
+  --fundo-alt: #131a17;
+  --texto: #e9eeec;
+  --suave: #a4b0ab;
+  --linha: #26302c;
+  --linha-forte: #6d7a74;
+  --link: #5ad690;
+  --hero: #09100d;
   --hero-texto: #f1f5f3;
   --hero-suave: #a9b8b1;
-  --hero-linha: #24332d;
-  --hero-cartao: #13211c;
+  --hero-linha: #22302a;
+  --hero-cartao: #111b17;
   --verde: #3ccb78;
   --verde-hover: #62d892;
   --verde-tinta: #05140c;
-  --faixa: #fff7d6;
-  --faixa-texto: #3d3100;
-  --faixa-linha: #ecdc9c;
+  --faixa: #2a2510;
+  --faixa-texto: #f1e4ae;
+  --faixa-linha: #4a4120;
   --texto-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fundo: #0f1412;
-    --fundo-alt: #151c19;
-    --texto: #e9eeec;
-    --suave: #a4b0ab;
-    --linha: #26302c;
-    --linha-forte: #6d7a74;
-    --link: #5ad690;
-    --hero: #0a110e;
-    --hero-cartao: #111b17;
-    --hero-linha: #22302a;
-    --faixa: #2a2510;
-    --faixa-texto: #f1e4ae;
-    --faixa-linha: #4a4120;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -105,7 +89,7 @@ kbd {
 }
 
 /* Hero: receber suporte */
-.hero { background: var(--hero); color: var(--hero-texto); }
+.hero { background: var(--hero); color: var(--hero-texto); border-bottom: 1px solid var(--linha); }
 .hero a { color: var(--hero-texto); }
 .hero .sobretitulo { color: var(--verde); }
 .hero a:focus-visible { outline-color: var(--hero-texto); }
@@ -228,6 +212,7 @@ kbd {
   margin: 8px 0 0;
   background: var(--hero);
   color: var(--hero-texto);
+  border: 1px solid var(--linha);
   border-radius: 8px;
   padding: 8px 8px 8px 14px;
   font-size: 12.5px; line-height: 1.5;
@@ -266,6 +251,11 @@ kbd {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
+
+/* Privacidade */
+.privacidade { padding-top: 56px; padding-bottom: 56px; }
+.privacidade ul { margin-top: 16px; padding-left: 20px; display: grid; gap: 10px; color: var(--suave); max-width: 78ch; }
+.privacidade strong { color: var(--texto); }
 
 /* Rodapé */
 .rodape { border-top: 1px solid var(--linha); color: var(--suave); font-size: 0.88rem; }
