@@ -48,4 +48,10 @@ http://baixar.desbloqueiorepidclass.com.br {
 		root * /site/www
 		file_server
 	}
+
+	# Erros (404 etc.) nunca ficam em cache, mesmo se o cache longo já tiver sido escolhido.
+	handle_errors {
+		header Cache-Control "no-store"
+		respond "{err.status_code} {err.status_text}"
+	}
 }

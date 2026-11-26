@@ -19,14 +19,17 @@ ARQUIVOS=(
 # Espaço que precisa sobrar no disco depois do download (o CT também roda hbbs/hbbr).
 RESERVA_MB="${JRTECH_SITE_RESERVA_MB:-1024}"
 
-# A pasta publicada tem o versao.json e todos os arquivos com o tamanho registrado nele?
+# A pasta publicada tem o versao.json e todos os arquivos com o tamanho e o SHA-256
+# registrados nele? (~155 MB de hash a cada execução, com prioridade baixa.)
 publicacao_completa() {
-  local pasta=$1 nome esperado
+  local pasta=$1 nome esperado hash
   [[ -f "$pasta/versao.json" ]] || return 1
   jq -e --arg t "$tag" '.tag == $t' "$pasta/versao.json" >/dev/null 2>&1 || return 1
   for nome in "${ARQUIVOS[@]}"; do
     esperado=$(jq -er --arg n "$nome" '.arquivos[$n].tamanho' "$pasta/versao.json" 2>/dev/null) || return 1
-    [[ -f "$pasta/$nome" && "$(stat -c %s "$pasta/$nome")" == "$esperado" ]] || return 1
+    [[ -f "$pasta/$nome" && ! -L "$pasta/$nome" && "$(stat -c %s "$pasta/$nome")" == "$esperado" ]] || return 1
+    hash=$(jq -er --arg n "$nome" '.arquivos[$n].sha256' "$pasta/versao.json" 2>/dev/null) || return 1
+    [[ "$(nice -n 19 sha256sum "$pasta/$nome" | cut -d' ' -f1)" == "$hash" ]] || return 1
   done
 }
 
@@ -119,7 +122,7 @@ if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
   chmod -R a+rX "$tmp"
   for nome in "${ARQUIVOS[@]}" versao.json; do
     if ! cmp -s "$tmp/$nome" "$destino/$nome"; then
-      mv -f "$tmp/$nome" "$destino/$nome"
+      mv -fT "$tmp/$nome" "$destino/$nome"
       echo "$tag: $nome reparado"
     fi
   done

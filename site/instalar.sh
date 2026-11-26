@@ -3,16 +3,17 @@
 #   bash instalar.sh
 # Pode rodar de novo a qualquer momento (atualiza a página e reinicia o Caddy).
 #
-# A página (www) e o Caddyfile mudam juntos: se o Caddy novo não servir a página, os dois
-# voltam ao que estava antes, junto com o contêiner anterior. O sincronizador e as units do
-# systemd só são trocados depois que o Caddy novo respondeu.
-set -euo pipefail
+# Tudo o que pode falhar é preparado antes de parar o Caddy em uso. Depois que ele para,
+# qualquer erro chama voltar(), que restaura página, Caddyfile e contêiner anteriores.
+# O sincronizador e as units do systemd só são trocados depois que o Caddy novo serviu
+# a página nova.
+set -Eeuo pipefail
 cd "$(dirname "$0")"
 
-BASE=/opt/jrtechdesk-site
+BASE=${JRTECH_SITE_BASE:-/opt/jrtechdesk-site}
 CADDY_IMAGEM="caddy:2.10.0"
 CONTAINER=jrtechdesk-site
-UNITS=/etc/systemd/system
+UNITS=${JRTECH_SITE_UNITS:-/etc/systemd/system}
 HOST_PUBLICO=baixar.desbloqueiorepidclass.com.br
 
 umask 022
@@ -28,60 +29,82 @@ command -v jq >/dev/null && command -v curl >/dev/null || {
 id_nova=$(date +%Y%m%d%H%M%S)-$$
 www_nova="www-$id_nova"
 novo=$(mktemp -d "$BASE/.instalando.XXXXXX")
-trap 'rm -rf -- "$novo"' EXIT
+manter_novo=
+trap 'if [[ -z "$manter_novo" ]]; then rm -rf -- "$novo"; fi' EXIT
 
+# --- Preparação: nada do que está no ar muda aqui. ---
+rm -f -- "$BASE/www.novo"
 mkdir -p "$BASE/$www_nova/img"
 install -m 0644 www/img/*.png "$BASE/$www_nova/img/"
 install -m 0644 www/estilo.css www/versao.js www/index.html "$BASE/$www_nova/"
 install -m 0644 Caddyfile "$novo/"
 install -m 0755 sincronizar.sh "$novo/"
 install -m 0644 jrtechdesk-site-sync.service jrtechdesk-site-sync.timer "$novo/"
+hash_index=$(sha256sum "$BASE/$www_nova/index.html" | cut -d' ' -f1)
 
 docker run --rm -e JRTECH_SITE_ID=validacao -v "$novo/Caddyfile":/etc/caddy/Caddyfile:ro \
   "$CADDY_IMAGEM" caddy validate --config /etc/caddy/Caddyfile
 
-# Primeira instalação com www como pasta comum: vira uma pasta versionada para o
-# link simbólico poder ser trocado de uma vez.
-if [[ -d "$BASE/www" && ! -L "$BASE/www" ]]; then
-  mv -T "$BASE/www" "$BASE/www-anterior-$id_nova"
-  ln -sT "www-anterior-$id_nova" "$BASE/www"
+ln -sT "$www_nova" "$BASE/www.novo"
+www_legado=   # www como pasta comum (instalação antiga): vira www-legado-<id>
+www_anterior= # www já era link: para onde apontava
+if [[ -L "$BASE/www" ]]; then
+  www_anterior=$(readlink "$BASE/www")
 fi
-www_anterior=$(readlink "$BASE/www" 2>/dev/null || true)
-caddyfile_anterior=
+caddyfile_backup=
 if [[ -f "$BASE/Caddyfile" ]]; then
-  caddyfile_anterior="$novo/Caddyfile.anterior"
-  cp -p "$BASE/Caddyfile" "$caddyfile_anterior"
+  caddyfile_backup="$novo/Caddyfile.anterior"
+  cp -p "$BASE/Caddyfile" "$caddyfile_backup"
 fi
 
 anterior=
 if cid=$(docker container inspect --format '{{.Id}}' "$CONTAINER" 2>/dev/null); then
   anterior="$CONTAINER-anterior-${cid:0:12}"
   docker rename "$CONTAINER" "$anterior"
-  if ! docker stop "$anterior"; then
+  if ! docker stop "$anterior" >/dev/null; then
     docker rename "$anterior" "$CONTAINER"
     exit 1
   fi
 fi
 
+# --- Recuperação: cada passo é tentado mesmo se um anterior falhar. ---
 voltar() {
-  echo "O novo Caddy não serviu a página. Voltando à instalação anterior." >&2
-  docker logs --tail 20 "$CONTAINER" >&2 2>/dev/null || true
-  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-  if [[ -n "$www_anterior" ]]; then
-    ln -sfnT "$www_anterior" "$BASE/www.novo" && mv -T "$BASE/www.novo" "$BASE/www"
+  trap - ERR
+  set +e
+  local falhou=
+  echo "A instalação falhou. Voltando à instalação anterior." >&2
+  docker logs --tail 20 "$CONTAINER" >&2 2>/dev/null
+  docker rm -f "$CONTAINER" >/dev/null 2>&1
+  if [[ -n "$www_legado" ]]; then
+    { [[ ! -e "$BASE/www" ]] || rm -f -- "$BASE/www"; } && mv -T "$BASE/$www_legado" "$BASE/www" || falhou=1
+  elif [[ -n "$www_anterior" ]]; then
+    ln -sfnT "$www_anterior" "$BASE/www.novo" && mv -T "$BASE/www.novo" "$BASE/www" || falhou=1
   fi
-  if [[ -n "$caddyfile_anterior" ]]; then
-    mv -T "$caddyfile_anterior" "$BASE/Caddyfile"
+  if [[ -n "$caddyfile_backup" ]]; then
+    cp -p "$caddyfile_backup" "$BASE/Caddyfile.restaurando" &&
+      mv -T "$BASE/Caddyfile.restaurando" "$BASE/Caddyfile" || falhou=1
   fi
-  rm -rf -- "${BASE:?}/$www_nova"
   if [[ -n "$anterior" ]]; then
-    docker rename "$anterior" "$CONTAINER"
-    docker start "$CONTAINER"
+    docker rename "$anterior" "$CONTAINER" && docker start "$CONTAINER" >/dev/null || falhou=1
+  fi
+  if [[ -n "$falhou" ]]; then
+    manter_novo=1
+    echo "ATENÇÃO: a recuperação não terminou. Backup do Caddyfile em $novo;" \
+      "página nova em $BASE/$www_nova; contêiner anterior: ${anterior:-nenhum}." >&2
+  else
+    rm -f -- "$BASE/www.novo"
+    rm -rf -- "${BASE:?}/$www_nova"
   fi
   exit 1
 }
+trap voltar ERR
 
-ln -sfnT "$www_nova" "$BASE/www.novo" && mv -T "$BASE/www.novo" "$BASE/www"
+# --- Troca. ---
+if [[ -d "$BASE/www" && ! -L "$BASE/www" ]]; then
+  www_legado="www-legado-$id_nova"
+  mv -T "$BASE/www" "$BASE/$www_legado"
+fi
+mv -T "$BASE/www.novo" "$BASE/www"
 mv -T "$novo/Caddyfile" "$BASE/Caddyfile"
 
 # Identificador só deste contêiner: a checagem abaixo só aceita resposta que venha dele,
@@ -94,33 +117,37 @@ docker run -d --name "$CONTAINER" --restart unless-stopped --network host \
   -v "$BASE/Caddyfile":/etc/caddy/Caddyfile:ro \
   -v jrtechdesk-site-dados:/data \
   -v jrtechdesk-site-config:/config \
-  "$CADDY_IMAGEM" >/dev/null || voltar
+  "$CADDY_IMAGEM" >/dev/null
 
+# Aceita só: curl sem erro, status 200, identificador deste contêiner e a página nova.
 servindo=
 for _ in $(seq 1 15); do
-  cabecalhos=$(curl -sS -o /dev/null -D - --max-time 3 -H "Host: $HOST_PUBLICO" \
-    http://127.0.0.1/ 2>/dev/null | tr -d '\r' || true)
-  if grep -q '^HTTP/[0-9.]* 200' <<<"$cabecalhos" &&
-    grep -qi "^x-jrtechdesk-site: $site_id\$" <<<"$cabecalhos"; then
+  if status=$(curl -sS -o "$novo/resposta.html" -D "$novo/cabecalhos" -w '%{http_code}' \
+      --max-time 3 -H "Host: $HOST_PUBLICO" http://127.0.0.1/ 2>/dev/null) &&
+    [[ "$status" == 200 ]] &&
+    tr -d '\r' <"$novo/cabecalhos" | grep -qi "^x-jrtechdesk-site: $site_id\$" &&
+    [[ "$(sha256sum "$novo/resposta.html" | cut -d' ' -f1)" == "$hash_index" ]]; then
     servindo=1
     break
   fi
   sleep 1
 done
 [[ -n "$servindo" ]] || voltar
+trap - ERR
 
+# --- Caddy novo confirmado. ---
 if [[ -n "$anterior" ]]; then
   docker rm "$anterior" >/dev/null || echo "Não foi possível remover o contêiner anterior: $anterior" >&2
 fi
 # Guarda só a página atual e a anterior.
+manter_www=${www_legado:-$www_anterior}
 for pasta in "$BASE"/www-*; do
   nome=${pasta##*/}
-  if [[ -d "$pasta" && "$nome" != "$www_nova" && "$nome" != "$www_anterior" ]]; then
+  if [[ -d "$pasta" && "$nome" != "$www_nova" && "$nome" != "$manter_www" ]]; then
     rm -rf -- "$pasta"
   fi
 done
 
-# Caddy novo confirmado: agora o sincronizador e as units.
 mv -T "$novo/sincronizar.sh" "$BASE/sincronizar.sh"
 for unit in jrtechdesk-site-sync.service jrtechdesk-site-sync.timer; do
   mv -T "$novo/$unit" "$UNITS/$unit"

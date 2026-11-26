@@ -26,8 +26,9 @@ o HTTPS fica no Caddy de borda que já recebe as portas 80/443 públicas da rede
 - O Caddy roda no Docker (`jrtechdesk-site`, rede do host, porta 80).
 - A sincronização só começa se sobrar pelo menos 1 GB livre depois do download
   (`JRTECH_SITE_RESERVA_MB`), para não apertar o disco do hbbs/hbbr.
-- Se a pasta publicada perder algum arquivo, a próxima execução percebe, baixa de novo e
-  troca só o que estiver errado, sem tirar do ar o que estava certo.
+- A cada execução o timer confere tamanho e SHA-256 de todos os arquivos publicados
+  (~155 MB, com prioridade baixa). Se algum sumir ou mudar, baixa de novo e troca só o
+  que estiver errado (arquivo a arquivo), sem tirar do ar o que estava certo.
 - `/versoes/<tag>/` guarda a versão atual e a anterior. Uma aba aberta há duas releases
   ou mais pode dar 404 nos links dos técnicos; basta recarregar a página. Sem JavaScript,
   os links usam `/download/` (versão atual).
@@ -59,10 +60,12 @@ scp -r site/* root@192.168.15.250:/root/jrtechdesk-site-src/
 ssh root@192.168.15.250 'bash /root/jrtechdesk-site-src/instalar.sh'
 ```
 
-O instalador valida o Caddyfile, troca a página (`www` é um link para `www-<data>`) e o
+O instalador prepara tudo antes de parar o Caddy em uso, valida o Caddyfile, troca a página (`www` é um link para `www-<data>`) e o
 Caddyfile juntos e só remove o contêiner anterior depois que o novo responde 200 em
-`http://127.0.0.1/` com o identificador dele (`X-JrTechDesk-Site`). Se não responder,
-volta página, Caddyfile e contêiner anteriores. O sincronizador e as units só são trocados
+`http://127.0.0.1/` com o identificador dele (`X-JrTechDesk-Site`) e o `index.html` novo.
+Qualquer erro depois de parar o Caddy antigo volta página, Caddyfile e contêiner
+anteriores; se a própria recuperação falhar, o backup fica em `/opt/jrtechdesk-site/.instalando.*`
+e o caminho é mostrado na saída. O sincronizador e as units só são trocados
 depois disso. Se o GitHub estiver
 indisponível na instalação, o Caddy pode servir os arquivos já publicados enquanto o timer
 tenta sincronizar novamente.
