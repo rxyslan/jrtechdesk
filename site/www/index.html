@@ -14,7 +14,7 @@
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
 <header class="topo">
-  <p class="oficial"><span class="largura">Confira na barra de endereços: o único endereço oficial é <strong>https://baixar.desbloqueiorepidclass.com.br</strong>. Não baixe o JrTechDesk de outros sites nem de links recebidos por mensagem.</span></p>
+  <p class="oficial"><span class="largura">Confira na barra de endereços: o único endereço oficial é <strong>https://baixar.<wbr>desbloqueiorepidclass.<wbr>com.<wbr>br</strong>. Não baixe o JrTechDesk de outros sites nem de links recebidos por mensagem.</span></p>
   <div class="largura topo-linha">
     <a class="marca" href="/">
       <span class="selo"><img src="img/app.png" alt="" width="28" height="28"></span>
@@ -41,10 +41,6 @@
           <span class="botao-sub">x64 · .exe · Windows 10 e 11</span>
         </a>
         <p class="meta"><span data-versao hidden></span><span data-tamanho="JrTechDesk-suporte.exe" hidden></span><span data-sha256="JrTechDesk-suporte.exe" hidden></span></p>
-        <details class="hash" data-hash-bloco hidden>
-          <summary>SHA-256 completo do .exe</summary>
-          <pre class="comando sem-prompt" data-copiar="SHA-256"><code data-sha256-completo="JrTechDesk-suporte.exe"></code></pre>
-        </details>
         <p class="outros">Para técnicos: <a href="#windows">Windows</a> <span aria-hidden="true">|</span> <a href="#linux">Linux</a></p>
         <p class="so-celular"><strong>Está no celular?</strong> Este programa é para computador. No computador, abra o navegador e digite <span class="endereco">baixar.desbloqueiorepidclass.com.br</span></p>
       </div>
@@ -54,7 +50,7 @@
         <ol class="passos" role="list">
           <li><div><strong>Baixe.</strong> Clique em Baixar para Windows.</div></li>
           <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece na lista de downloads do navegador (<kbd>Ctrl</kbd> + <kbd>J</kbd>). Se aparecer um aviso do navegador ou do Windows, pare e avise o técnico.</div></li>
-          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Com eles, o técnico entra no seu computador e aparece uma janela com a conexão. Ao terminar, clique em Desconectar e feche o programa.</div></li>
+          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Passe só ao técnico do atendimento que você pediu: com eles, ele entra na hora, sem outro clique seu, e aparece uma janela com a conexão. Ao terminar, clique em Desconectar e feche o programa.</div></li>
         </ol>
       </div>
     </div>
@@ -147,9 +143,18 @@
       <div class="verificacao">
         <div>
           <h3>Conferir os arquivos</h3>
-          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes e rode o comando nessa pasta. Confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
+          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes. No Linux, rode o comando nessa pasta e confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
         </div>
-        <pre class="comando" data-copiar><code>LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
+        <div class="verificacao-comandos">
+          <p class="rotulo-comando">Linux</p>
+          <pre class="comando" data-copiar><code>LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
+          <p class="rotulo-comando">Windows (PowerShell, na pasta Downloads)</p>
+          <pre class="comando" data-copiar><code>Get-FileHash .\JrTechDesk-suporte.exe -Algorithm SHA256</code></pre>
+          <div data-hash-bloco hidden>
+            <p class="rotulo-comando">Compare com o SHA-256 do JrTechDesk-suporte.exe</p>
+            <pre class="comando sem-prompt" data-copiar="SHA-256"><code data-sha256-completo="JrTechDesk-suporte.exe"></code></pre>
+          </div>
+        </div>
       </div>
 
       <p class="nota">O programa avisa quando há versão nova. No Windows, clique em <em>Atualizar</em> no aviso (ou em <em>Baixar</em>, quando for essa a opção). No Linux, baixe e instale o pacote novo.</p>
@@ -157,17 +162,18 @@
     </div>
   </section>
   <section class="largura privacidade" id="privacidade" aria-labelledby="titulo-privacidade">
-    <p class="sobretitulo">LGPD</p>
     <h2 id="titulo-privacidade" class="titulo-secao">Privacidade</h2>
+    <p class="intro">Vale para o JrTechDesk Suporte, o programa de quem recebe atendimento, e para esta página. O Completo, dos técnicos, está no fim da lista.</p>
     <ul>
-      <li><strong>Esta página</strong> não usa cookies, não tem rastreamento, anúncios nem formulários e não carrega nada de outros sites.</li>
+      <li><strong>Esta página</strong> não usa cookies, ferramentas de rastreamento, anúncios nem formulários e não carrega nada de outros sites. O servidor que a entrega pode registrar o endereço IP e o horário dos acessos, para segurança e funcionamento.</li>
       <li><strong>Para que serve o acesso:</strong> resolver, durante o atendimento, o problema que você pediu à Jrtech.</li>
-      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela, usar o mouse e o teclado, copiar e transferir arquivos, usar a área de transferência, ouvir o áudio e usar a câmera do computador, abrir um terminal, imprimir, gravar a sessão, reiniciar o computador, bloquear o seu mouse e teclado e escurecer a sua tela enquanto trabalha.</li>
-      <li><strong>Quando o acesso acontece:</strong> com o ID e a senha, o técnico entra sem pedir outra confirmação. Enquanto o programa estiver aberto, a mesma senha continua valendo. Passe a senha só ao técnico do atendimento que você pediu e, ao terminar, clique em Desconectar e feche o programa.</li>
-      <li><strong>No Linux</strong>, os pacotes instalam um serviço que continua ativo depois de fechar a janela. Para desativá-lo, remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>.</li>
-      <li><strong>Servidores:</strong> os servidores da Jrtech localizam o computador pelo ID e, quando preciso, retransmitem a conexão. Eles guardam o ID e a chave do computador e o último endereço IP usado, e são configurados para exigir criptografia.</li>
-      <li><strong>Serviços de terceiros:</strong> o programa consulta o GitHub para saber se há versão nova e servidores públicos de rede (Google, Cloudflare e outros, alguns fora do Brasil) para descobrir o endereço de rede do computador. Esses serviços recebem o endereço IP.</li>
-      <li><strong>Seus direitos:</strong> pela LGPD (art. 18), você pode pedir à Jrtech a confirmação e o acesso aos seus dados, a correção, a anonimização, o bloqueio ou a eliminação, a informação sobre com quem eles são compartilhados e os demais direitos da lei, sem custo. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</li>
+      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio e usar a câmera do computador; abrir um terminal; usar o seu computador para acessar outros equipamentos da sua rede (roteador, impressoras, servidores); imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema.</li>
+      <li><strong>Quando o acesso acontece:</strong> com o ID e a senha, o técnico entra sem pedir outra confirmação. Depois que ele entra, o programa troca a senha. Se a conexão cair, ele pode voltar em poucos segundos; depois disso, precisa da senha nova que aparece na tela. Ao terminar, clique em Desconectar e feche o programa.</li>
+      <li><strong>No Linux</strong>, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</li>
+      <li><strong>Servidores da Jrtech:</strong> localizam o computador pelo ID e, quando preciso, retransmitem a conexão. Recebem e guardam o ID, um identificador do aparelho (UUID), a chave pública do programa e o endereço IP, e registram em log as tentativas de conexão (IDs, IPs e horários). Hoje não há prazo definido para apagar esses registros. Os servidores só aceitam o programa com a chave da Jrtech, e a sessão é criptografada entre os dois computadores.</li>
+      <li><strong>Serviços de terceiros:</strong> o programa consulta o GitHub (empresa dos Estados Unidos) para saber se há versão nova, informando a versão instalada, e pode consultar servidores públicos de rede (Google, Cloudflare, Antisip e Nextcloud, que podem ficar fora do Brasil) para tentar uma conexão direta. Esses serviços recebem o endereço IP.</li>
+      <li><strong>JrTechDesk Completo</strong> (técnicos): além do acima, é programado para enviar aos servidores da Jrtech o nome do computador, o usuário conectado, o sistema e o hardware, e um registro de cada conexão com o IP e o nome do técnico e os nomes e tamanhos dos arquivos transferidos.</li>
+      <li><strong>Seus direitos (LGPD, art. 18):</strong> sem custo, você pode pedir à Jrtech a confirmação de que tratamos seus dados e o acesso a eles; a correção; a anonimização, o bloqueio ou a eliminação de dados desnecessários, excessivos ou tratados em desconformidade; a portabilidade; a informação sobre com quem eles são compartilhados; e, quando o tratamento depender do seu consentimento, a informação sobre a possibilidade de não consentir e suas consequências, a revogação e a eliminação desses dados. Você também pode se opor a um tratamento irregular. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</li>
     </ul>
   </section>
 </main>

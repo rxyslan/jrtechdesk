@@ -56,15 +56,10 @@ kbd {
 }
 .pular:focus { top: 12px; }
 
-/* SHA-256 completo */
-.hash { margin-top: 4px; color: var(--hero-suave); font-size: 0.88rem; }
-.hash summary { list-style: none; display: inline-flex; gap: 6px; align-items: center; min-height: 44px; cursor: pointer; }
-.hash summary::before { content: "+"; font: 600 1rem/1 var(--mono); color: var(--verde); width: 1.5ch; }
-.hash[open] summary::before { content: "−"; }
-.hash summary::-webkit-details-marker { display: none; }
-.hash summary:focus-visible { outline: 3px solid var(--hero-texto); outline-offset: 2px; }
-.hash .comando { margin-top: 4px; max-width: 520px; }
-.sem-prompt code::before { content: none; }
+/* Conferência */
+.rotulo-comando { margin-top: 12px; font-size: 0.82rem; font-weight: 600; color: var(--suave); }
+.rotulo-comando:first-child { margin-top: 0; }
+.verificacao-comandos .comando { margin-top: 6px; }
 
 /* Faixa do endereço oficial */
 .oficial {
@@ -73,7 +68,7 @@ kbd {
   font-size: 0.88rem; line-height: 1.4;
 }
 .oficial .largura { padding-top: 9px; padding-bottom: 9px; }
-.oficial strong { overflow-wrap: anywhere; }
+.oficial strong { overflow-wrap: normal; }
 
 /* Topo */
 .topo { border-bottom: 1px solid var(--linha); }
@@ -229,7 +224,7 @@ kbd {
   font-size: 13.5px; line-height: 1.5;
 }
 .comando code { flex: 1; min-width: 0; font-size: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
-.comando code::before { content: "$ "; color: var(--hero-suave); user-select: none; }
+.comando:not(.sem-prompt) code::before { content: "$ "; color: var(--hero-suave); user-select: none; }
 .copiar {
   flex: none;
   min-height: 44px; min-width: 76px;
@@ -255,7 +250,6 @@ kbd {
 }
 .verificacao h3 { font-size: 1.05rem; font-weight: 700; }
 .verificacao p { margin-top: 6px; color: var(--suave); font-size: 0.95rem; }
-.verificacao .comando { margin: 0; }
 
 .nota { margin-top: 24px; color: var(--suave); font-size: 0.92rem; max-width: 72ch; }
 .aviso-copia {
@@ -265,6 +259,7 @@ kbd {
 
 /* Privacidade */
 .privacidade { padding-top: 56px; padding-bottom: 56px; }
+.privacidade .intro { margin-top: 12px; }
 .privacidade ul { margin-top: 16px; padding-left: 20px; display: grid; gap: 10px; color: var(--suave); max-width: 78ch; }
 .privacidade strong { color: var(--texto); }
 
