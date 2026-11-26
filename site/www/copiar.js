@@ -25,9 +25,10 @@ for (const pre of document.querySelectorAll('pre[data-copiar]')) {
   botao.type = 'button';
   botao.className = 'copiar';
   botao.textContent = 'Copiar';
-  botao.setAttribute('aria-label', `Copiar comando: ${code.textContent}`);
+  botao.setAttribute('aria-label', `Copiar ${pre.dataset.copiar || 'comando'}: ${code.textContent}`);
   let volta;
   botao.addEventListener('click', async () => {
+    botao.setAttribute('aria-label', `Copiar ${pre.dataset.copiar || 'comando'}: ${code.textContent}`);
     let ok = false;
     try {
       await navigator.clipboard.writeText(code.textContent);
@@ -36,7 +37,7 @@ for (const pre of document.querySelectorAll('pre[data-copiar]')) {
       selecionar(code);
     }
     estado.textContent = ok ? 'Copiado' : 'Selecionado: use Ctrl + C';
-    anunciar(ok ? 'Comando copiado.' : 'Comando selecionado. Use Ctrl + C para copiar.');
+    anunciar(ok ? 'Copiado.' : 'Texto selecionado. Use Ctrl + C para copiar.');
     clearTimeout(volta);
     volta = setTimeout(() => { estado.textContent = ''; }, ok ? 2000 : 6000);
   });

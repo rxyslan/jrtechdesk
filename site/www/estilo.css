@@ -56,6 +56,16 @@ kbd {
 }
 .pular:focus { top: 12px; }
 
+/* SHA-256 completo */
+.hash { margin-top: 4px; color: var(--hero-suave); font-size: 0.88rem; }
+.hash summary { list-style: none; display: inline-flex; gap: 6px; align-items: center; min-height: 44px; cursor: pointer; }
+.hash summary::before { content: "+"; font: 600 1rem/1 var(--mono); color: var(--verde); width: 1.5ch; }
+.hash[open] summary::before { content: "−"; }
+.hash summary::-webkit-details-marker { display: none; }
+.hash summary:focus-visible { outline: 3px solid var(--hero-texto); outline-offset: 2px; }
+.hash .comando { margin-top: 4px; max-width: 520px; }
+.sem-prompt code::before { content: none; }
+
 /* Faixa do endereço oficial */
 .oficial {
   background: var(--faixa); color: var(--faixa-texto);
@@ -69,7 +79,7 @@ kbd {
 .topo { border-bottom: 1px solid var(--linha); }
 .topo-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding-top: 12px; padding-bottom: 12px; }
 .marca {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
   color: var(--texto); text-decoration: none;
   font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em;
 }
@@ -132,7 +142,7 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 .outros { margin-top: 10px; font-size: 0.95rem; color: var(--hero-suave); }
-.outros a { display: inline-block; padding: 10px 2px; font-weight: 600; }
+.outros a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-weight: 600; }
 .outros span { margin: 0 6px; color: var(--hero-linha); }
 
 .so-celular { display: none; }
@@ -204,6 +214,7 @@ kbd {
 }
 .pacote:hover { border-color: var(--texto); }
 .pacote-nome { font-weight: 700; color: var(--link); }
+.pacote-desc { font-weight: 400; color: var(--suave); font-size: 0.9rem; }
 .pacote-arquivo { font: 0.8rem/1.4 var(--mono); color: var(--suave); overflow-wrap: anywhere; }
 .pacote-arquivo [data-tamanho] { white-space: pre; }
 
@@ -215,7 +226,7 @@ kbd {
   border: 1px solid var(--linha);
   border-radius: 8px;
   padding: 8px 8px 8px 14px;
-  font-size: 12.5px; line-height: 1.5;
+  font-size: 13.5px; line-height: 1.5;
 }
 .comando code { flex: 1; min-width: 0; font-size: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .comando code::before { content: "$ "; color: var(--hero-suave); user-select: none; }
@@ -294,6 +305,7 @@ kbd {
   .largura { padding-left: 16px; padding-right: 16px; }
   .plataforma .pacotes { grid-template-columns: minmax(0, 1fr); }
   .botao { display: flex; width: 100%; }
+  .meta { min-height: 3em; }
   .como { padding: 20px; }
   .dar { padding-top: 48px; }
 }

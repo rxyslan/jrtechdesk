@@ -37,5 +37,13 @@ fetch('/download/versao.json', { cache: 'no-cache' })
         span.hidden = false;
       }
     }
+    for (const code of document.querySelectorAll('[data-sha256-completo]')) {
+      const hash = v?.arquivos?.[code.dataset.sha256Completo]?.sha256;
+      const bloco = code.closest('[data-hash-bloco]');
+      if (bloco && typeof hash === 'string' && /^[0-9a-f]{64}$/.test(hash)) {
+        code.textContent = hash;
+        bloco.hidden = false;
+      }
+    }
   })
   .catch(() => {});

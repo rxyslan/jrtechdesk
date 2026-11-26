@@ -13,9 +13,8 @@
 <body>
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
-<p class="oficial"><span class="largura">Endereço oficial: <strong>baixar.desbloqueiorepidclass.com.br</strong>. Não baixe o JrTechDesk de outros sites nem de links recebidos por mensagem.</span></p>
-
 <header class="topo">
+  <p class="oficial"><span class="largura">Confira na barra de endereços: o único endereço oficial é <strong>https://baixar.desbloqueiorepidclass.com.br</strong>. Não baixe o JrTechDesk de outros sites nem de links recebidos por mensagem.</span></p>
   <div class="largura topo-linha">
     <a class="marca" href="/">
       <span class="selo"><img src="img/app.png" alt="" width="28" height="28"></span>
@@ -42,16 +41,20 @@
           <span class="botao-sub">x64 · .exe · Windows 10 e 11</span>
         </a>
         <p class="meta"><span data-versao hidden></span><span data-tamanho="JrTechDesk-suporte.exe" hidden></span><span data-sha256="JrTechDesk-suporte.exe" hidden></span></p>
-        <p class="outros">Outros sistemas: <a href="#windows">Windows</a> <span aria-hidden="true">|</span> <a href="#linux">Linux</a></p>
+        <details class="hash" data-hash-bloco hidden>
+          <summary>SHA-256 completo do .exe</summary>
+          <pre class="comando sem-prompt" data-copiar="SHA-256"><code data-sha256-completo="JrTechDesk-suporte.exe"></code></pre>
+        </details>
+        <p class="outros">Para técnicos: <a href="#windows">Windows</a> <span aria-hidden="true">|</span> <a href="#linux">Linux</a></p>
         <p class="so-celular"><strong>Está no celular?</strong> Este programa é para computador. No computador, abra o navegador e digite <span class="endereco">baixar.desbloqueiorepidclass.com.br</span></p>
       </div>
 
       <div class="como">
         <h2>Como funciona</h2>
-        <ol class="passos">
+        <ol class="passos" role="list">
           <li><div><strong>Baixe.</strong> Clique em Baixar para Windows.</div></li>
-          <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece no canto de cima do navegador ou na pasta Downloads (<kbd>Ctrl</kbd> + <kbd>J</kbd>).</div></li>
-          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Quando ele pedir, clique em Aceitar. Para terminar, feche o programa.</div></li>
+          <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece na lista de downloads do navegador (<kbd>Ctrl</kbd> + <kbd>J</kbd>). Se aparecer um aviso do navegador ou do Windows, pare e avise o técnico.</div></li>
+          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Com eles, o técnico entra no seu computador e aparece uma janela com a conexão. Ao terminar, clique em Desconectar e feche o programa.</div></li>
         </ol>
       </div>
     </div>
@@ -76,7 +79,7 @@
     <div class="largura">
       <p class="sobretitulo">Dar suporte</p>
       <h2 id="titulo-dar" class="titulo-secao">Para técnicos da Jrtech</h2>
-      <p class="intro">O <strong>Completo</strong> acessa outras máquinas. O <strong>Suporte</strong> só recebe conexões. Todos os pacotes são para 64 bits (x86-64).</p>
+      <p class="intro">O <strong>Completo</strong> acessa outras máquinas. O <strong>Suporte</strong> só recebe conexões. Todos os pacotes são para 64 bits (x86-64). No Linux, abra o terminal na pasta onde salvou os arquivos (normalmente Downloads) antes de rodar os comandos.</p>
 
       <div class="plataformas">
         <article class="plataforma" id="windows" aria-labelledby="p-win">
@@ -85,13 +88,13 @@
           <ul class="pacotes">
             <li>
               <a class="pacote" href="/download/JrTechDesk-completo.exe" data-arquivo="JrTechDesk-completo.exe" download>
-                <span class="pacote-nome">Completo</span>
+                <span class="pacote-nome">Completo <span class="pacote-desc">· atende outras máquinas</span></span>
                 <span class="pacote-arquivo">JrTechDesk-completo.exe<span data-tamanho="JrTechDesk-completo.exe" hidden></span></span>
               </a>
             </li>
             <li>
               <a class="pacote" href="/download/JrTechDesk-suporte.exe" data-arquivo="JrTechDesk-suporte.exe" download>
-                <span class="pacote-nome">Suporte</span>
+                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
                 <span class="pacote-arquivo">JrTechDesk-suporte.exe<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
               </a>
             </li>
@@ -100,42 +103,42 @@
 
         <article class="plataforma" id="linux" aria-labelledby="p-deb">
           <h3 id="p-deb">Ubuntu e Debian</h3>
-          <p class="requisito">Ubuntu 22.04 ou mais novo, e derivados</p>
+          <p class="requisito">Pacote .deb para 64 bits (amd64)</p>
           <ul class="pacotes">
             <li>
               <a class="pacote" href="/download/jrtechdesk-completo.deb" data-arquivo="jrtechdesk-completo.deb" download>
-                <span class="pacote-nome">Completo</span>
+                <span class="pacote-nome">Completo <span class="pacote-desc">· atende outras máquinas</span></span>
                 <span class="pacote-arquivo">jrtechdesk-completo.deb<span data-tamanho="jrtechdesk-completo.deb" hidden></span></span>
               </a>
-              <pre class="comando" data-copiar><code>sudo apt install ~/Downloads/jrtechdesk-completo.deb</code></pre>
+              <pre class="comando" data-copiar><code>sudo apt install ./jrtechdesk-completo.deb</code></pre>
             </li>
             <li>
               <a class="pacote" href="/download/jrtechdesk-suporte.deb" data-arquivo="jrtechdesk-suporte.deb" download>
-                <span class="pacote-nome">Suporte</span>
+                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
                 <span class="pacote-arquivo">jrtechdesk-suporte.deb<span data-tamanho="jrtechdesk-suporte.deb" hidden></span></span>
               </a>
-              <pre class="comando" data-copiar><code>sudo apt install ~/Downloads/jrtechdesk-suporte.deb</code></pre>
+              <pre class="comando" data-copiar><code>sudo apt install ./jrtechdesk-suporte.deb</code></pre>
             </li>
           </ul>
         </article>
 
         <article class="plataforma" aria-labelledby="p-arch">
           <h3 id="p-arch">Arch Linux</h3>
-          <p class="requisito">Arch atualizado e derivados</p>
+          <p class="requisito">Pacote .pkg.tar.zst para 64 bits; Arch atualizado</p>
           <ul class="pacotes">
             <li>
               <a class="pacote" href="/download/jrtechdesk-completo.pkg.tar.zst" data-arquivo="jrtechdesk-completo.pkg.tar.zst" download>
-                <span class="pacote-nome">Completo</span>
+                <span class="pacote-nome">Completo <span class="pacote-desc">· atende outras máquinas</span></span>
                 <span class="pacote-arquivo">jrtechdesk-completo.pkg.tar.zst<span data-tamanho="jrtechdesk-completo.pkg.tar.zst" hidden></span></span>
               </a>
-              <pre class="comando" data-copiar><code>sudo pacman -U ~/Downloads/jrtechdesk-completo.pkg.tar.zst</code></pre>
+              <pre class="comando" data-copiar><code>sudo pacman -U ./jrtechdesk-completo.pkg.tar.zst</code></pre>
             </li>
             <li>
               <a class="pacote" href="/download/jrtechdesk-suporte.pkg.tar.zst" data-arquivo="jrtechdesk-suporte.pkg.tar.zst" download>
-                <span class="pacote-nome">Suporte</span>
+                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
                 <span class="pacote-arquivo">jrtechdesk-suporte.pkg.tar.zst<span data-tamanho="jrtechdesk-suporte.pkg.tar.zst" hidden></span></span>
               </a>
-              <pre class="comando" data-copiar><code>sudo pacman -U ~/Downloads/jrtechdesk-suporte.pkg.tar.zst</code></pre>
+              <pre class="comando" data-copiar><code>sudo pacman -U ./jrtechdesk-suporte.pkg.tar.zst</code></pre>
             </li>
           </ul>
         </article>
@@ -144,9 +147,9 @@
       <div class="verificacao">
         <div>
           <h3>Conferir os arquivos</h3>
-          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes e rode o comando. Confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
+          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes e rode o comando nessa pasta. Confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
         </div>
-        <pre class="comando" data-copiar><code>cd ~/Downloads &amp;&amp; LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
+        <pre class="comando" data-copiar><code>LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
       </div>
 
       <p class="nota">O programa avisa quando há versão nova. No Windows, clique em <em>Atualizar</em> no aviso (ou em <em>Baixar</em>, quando for essa a opção). No Linux, baixe e instale o pacote novo.</p>
@@ -158,9 +161,13 @@
     <h2 id="titulo-privacidade" class="titulo-secao">Privacidade</h2>
     <ul>
       <li><strong>Esta página</strong> não usa cookies, não tem rastreamento, anúncios nem formulários e não carrega nada de outros sites.</li>
-      <li><strong>Durante o atendimento</strong>, o técnico vê a sua tela e pode controlar o computador, inclusive abrir e transferir arquivos, para resolver o que você pediu. O acesso só começa quando você passa o ID e a senha e aceita a conexão, e termina quando você fecha o programa.</li>
-      <li><strong>A conexão é criptografada</strong> e usa os servidores da própria Jrtech, sem serviços de terceiros.</li>
-      <li><strong>Dúvidas sobre os seus dados pessoais:</strong> fale com o técnico que atendeu você ou procure o suporte da Jrtech.</li>
+      <li><strong>Para que serve o acesso:</strong> resolver, durante o atendimento, o problema que você pediu à Jrtech.</li>
+      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela, usar o mouse e o teclado, copiar e transferir arquivos, usar a área de transferência, ouvir o áudio e usar a câmera do computador, abrir um terminal, imprimir, gravar a sessão, reiniciar o computador, bloquear o seu mouse e teclado e escurecer a sua tela enquanto trabalha.</li>
+      <li><strong>Quando o acesso acontece:</strong> com o ID e a senha, o técnico entra sem pedir outra confirmação. Enquanto o programa estiver aberto, a mesma senha continua valendo. Passe a senha só ao técnico do atendimento que você pediu e, ao terminar, clique em Desconectar e feche o programa.</li>
+      <li><strong>No Linux</strong>, os pacotes instalam um serviço que continua ativo depois de fechar a janela. Para desativá-lo, remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>.</li>
+      <li><strong>Servidores:</strong> os servidores da Jrtech localizam o computador pelo ID e, quando preciso, retransmitem a conexão. Eles guardam o ID e a chave do computador e o último endereço IP usado, e são configurados para exigir criptografia.</li>
+      <li><strong>Serviços de terceiros:</strong> o programa consulta o GitHub para saber se há versão nova e servidores públicos de rede (Google, Cloudflare e outros, alguns fora do Brasil) para descobrir o endereço de rede do computador. Esses serviços recebem o endereço IP.</li>
+      <li><strong>Seus direitos:</strong> pela LGPD (art. 18), você pode pedir à Jrtech a confirmação e o acesso aos seus dados, a correção, a anonimização, o bloqueio ou a eliminação, a informação sobre com quem eles são compartilhados e os demais direitos da lei, sem custo. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</li>
     </ul>
   </section>
 </main>
