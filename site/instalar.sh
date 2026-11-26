@@ -90,8 +90,10 @@ voltar() {
     docker logs --tail 20 "$novo_id" >&2 2>&1
     docker rm -f "$novo_id" >/dev/null 2>&1 || falhou=1
   fi
-  if [[ -n "$www_legado" ]]; then
+  if [[ -n "$www_legado" && -d "$BASE/$www_legado" ]]; then
     { [[ ! -e "$BASE/www" ]] || rm -f -- "$BASE/www"; } && mv -T "$BASE/$www_legado" "$BASE/www" || falhou=1
+  elif [[ -n "$www_legado" ]]; then
+    : # o mv da pasta legada não chegou a acontecer: www continua a original
   elif [[ -n "$www_anterior" ]]; then
     ln -sfnT "$www_anterior" "$BASE/www.novo" && mv -T "$BASE/www.novo" "$BASE/www" || falhou=1
   fi
@@ -105,6 +107,7 @@ voltar() {
     fi
     docker start "$CONTAINER" >/dev/null || falhou=1
   fi
+  [[ -f "$BASE/www/index.html" ]] || falhou=1
   if [[ -n "$falhou" ]]; then
     manter_novo=1
     echo "ATENÇÃO: a recuperação não terminou. Backup do Caddyfile em $novo;" \
@@ -125,8 +128,9 @@ if [[ -n "$cid" ]]; then
   docker stop "$anterior" >/dev/null
 fi
 if [[ -d "$BASE/www" && ! -L "$BASE/www" ]]; then
-  mv -T "$BASE/www" "$BASE/www-legado-$id_nova"
+  # Nome registrado antes do mv: se um sinal chegar no meio, voltar() olha o disco.
   www_legado="www-legado-$id_nova"
+  mv -T "$BASE/www" "$BASE/$www_legado"
 fi
 mv -T "$BASE/www.novo" "$BASE/www"
 mv -T "$novo/Caddyfile" "$BASE/Caddyfile"
