@@ -42,7 +42,7 @@
         </a>
         <p class="meta"><span data-versao hidden></span><span data-tamanho="JrTechDesk-suporte.exe" hidden></span><span data-sha256="JrTechDesk-suporte.exe" hidden></span></p>
         <p class="outros">Para técnicos: <a href="#windows">Windows</a> <span aria-hidden="true">|</span> <a href="#linux">Linux</a></p>
-        <p class="so-celular"><strong>Está no celular?</strong> Este programa é para computador. No computador, abra o navegador e digite <span class="endereco">baixar.desbloqueiorepidclass.com.br</span></p>
+        <p class="so-celular"><strong>Está no celular?</strong> Este programa é para computador. No computador, abra o navegador e digite <span class="endereco">baixar.<wbr>desbloqueiorepidclass.<wbr>com.<wbr>br</span></p>
       </div>
 
       <div class="como">
@@ -50,7 +50,7 @@
         <ol class="passos" role="list">
           <li><div><strong>Baixe.</strong> Clique em Baixar para Windows.</div></li>
           <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece na lista de downloads do navegador (<kbd>Ctrl</kbd> + <kbd>J</kbd>). Se aparecer um aviso do navegador ou do Windows, pare e avise o técnico.</div></li>
-          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Passe só ao técnico do atendimento que você pediu: com eles, ele entra na hora, sem outro clique seu, e aparece uma janela com a conexão. Ao terminar, clique em Desconectar e feche o programa.</div></li>
+          <li><div><strong>Diga ao técnico o ID e a senha.</strong> Passe só ao técnico do atendimento que você pediu: na configuração padrão, com eles o técnico entra na hora, sem outro clique seu, e aparece uma janela com a conexão. Ao terminar, clique em Desconectar e feche o programa.</div></li>
         </ol>
       </div>
     </div>
@@ -59,7 +59,7 @@
   <section class="largura avisos" aria-label="Segurança e ajuda">
     <div class="aviso">
       <h2>Segurança</h2>
-      <p>Passe o ID e a senha só para o técnico da Jrtech que está atendendo você. Se alguém ligar dizendo ser da Jrtech sem você ter pedido atendimento, desligue e procure o suporte da Jrtech.</p>
+      <p>Passe o ID e a senha só para o técnico da Jrtech que está atendendo você. Se alguém ligar dizendo ser da Jrtech sem você ter pedido atendimento, desligue e procure o suporte da Jrtech. Se aparecer uma janela pedindo para aceitar uma conexão sem você estar em atendimento, não aceite.</p>
     </div>
     <div class="aviso" id="aviso">
       <h2>Apareceu um aviso?</h2>
@@ -143,13 +143,13 @@
       <div class="verificacao">
         <div>
           <h3>Conferir os arquivos</h3>
-          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes. No Linux, rode o comando nessa pasta e confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
+          <p>Antes de instalar, baixe o <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt" download>SHA256SUMS.txt</a> para a mesma pasta dos pacotes. No Linux, rode o comando nessa pasta e confira se aparece <code>OK</code> ao lado do pacote que você vai instalar. No Windows, rode o comando do PowerShell com o nome do <code>.exe</code> que você baixou e compare o resultado com a linha desse arquivo no SHA256SUMS.txt (maiúsculas e minúsculas não importam). Se o navegador acrescentou “(1)” ao nome porque já havia uma cópia antiga, apague as cópias antigas e baixe de novo.</p>
         </div>
         <div class="verificacao-comandos">
           <p class="rotulo-comando">Linux</p>
           <pre class="comando" data-copiar><code>LC_ALL=C sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
           <p class="rotulo-comando">Windows (PowerShell, na pasta Downloads)</p>
-          <pre class="comando" data-copiar><code>Get-FileHash .\JrTechDesk-suporte.exe -Algorithm SHA256</code></pre>
+          <pre class="comando sem-prompt" data-copiar><code>(Get-FileHash .\JrTechDesk-suporte.exe -Algorithm SHA256).Hash</code></pre>
           <div data-hash-bloco hidden>
             <p class="rotulo-comando">Compare com o SHA-256 do JrTechDesk-suporte.exe</p>
             <pre class="comando sem-prompt" data-copiar="SHA-256"><code data-sha256-completo="JrTechDesk-suporte.exe"></code></pre>
@@ -167,12 +167,12 @@
     <ul>
       <li><strong>Esta página</strong> não usa cookies, ferramentas de rastreamento, anúncios nem formulários e não carrega nada de outros sites. O servidor que a entrega pode registrar o endereço IP e o horário dos acessos, para segurança e funcionamento.</li>
       <li><strong>Para que serve o acesso:</strong> resolver, durante o atendimento, o problema que você pediu à Jrtech.</li>
-      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio e usar a câmera do computador; abrir um terminal; usar o seu computador para acessar outros equipamentos da sua rede (roteador, impressoras, servidores); imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema.</li>
-      <li><strong>Quando o acesso acontece:</strong> com o ID e a senha, o técnico entra sem pedir outra confirmação. Depois que ele entra, o programa troca a senha. Se a conexão cair, ele pode voltar em poucos segundos; depois disso, precisa da senha nova que aparece na tela. Ao terminar, clique em Desconectar e feche o programa.</li>
-      <li><strong>No Linux</strong>, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</li>
-      <li><strong>Servidores da Jrtech:</strong> localizam o computador pelo ID e, quando preciso, retransmitem a conexão. Recebem e guardam o ID, um identificador do aparelho (UUID), a chave pública do programa e o endereço IP, e registram em log as tentativas de conexão (IDs, IPs e horários). Hoje não há prazo definido para apagar esses registros. Os servidores só aceitam o programa com a chave da Jrtech, e a sessão é criptografada entre os dois computadores.</li>
+      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio do computador (e, conforme a configuração, do microfone) e usar a câmera; abrir um terminal; usar a conexão do seu computador para acessar serviços que ele alcança, na sua rede (roteador, impressoras, servidores) ou na internet; imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema. Ao conectar, o técnico também recebe o nome do computador, o usuário conectado, o sistema e a versão do programa.</li>
+      <li><strong>Quando o acesso acontece:</strong> na configuração padrão, o técnico entra com o ID e a senha, sem pedir outra confirmação, ou quando você clica em Aceitar numa janela de pedido de conexão. Só aceite um atendimento que você pediu. Depois que o técnico entra, o programa troca a senha, mas a senha nova aparece na sua tela, que ele está vendo. Se ele sair ou a conexão cair, ainda pode voltar por cerca de 30 segundos. Por isso, ao terminar, clique em Desconectar e feche o programa.</li>
+      <li><strong>No Linux</strong>, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga, inclusive na tela de login. A senha mostrada continua valendo enquanto o serviço estiver ativo. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</li>
+      <li><strong>Servidores da Jrtech:</strong> localizam o computador pelo ID e, quando preciso, retransmitem a conexão. O programa envia a eles o ID, um identificador do aparelho (UUID) e a chave pública do programa; eles também veem o endereço IP e podem registrar em log as tentativas de conexão. Hoje não há prazo definido para apagar esses registros. Os servidores só aceitam pedidos de conexão de programas com a chave da Jrtech. O programa tenta sempre uma sessão criptografada entre os dois computadores; se a criptografia não estiver disponível, ele avisa o técnico, que pode decidir continuar.</li>
       <li><strong>Serviços de terceiros:</strong> o programa consulta o GitHub (empresa dos Estados Unidos) para saber se há versão nova, informando a versão instalada, e pode consultar servidores públicos de rede (Google, Cloudflare, Antisip e Nextcloud, que podem ficar fora do Brasil) para tentar uma conexão direta. Esses serviços recebem o endereço IP.</li>
-      <li><strong>JrTechDesk Completo</strong> (técnicos): além do acima, é programado para enviar aos servidores da Jrtech o nome do computador, o usuário conectado, o sistema e o hardware, e um registro de cada conexão com o IP e o nome do técnico e os nomes e tamanhos dos arquivos transferidos.</li>
+      <li><strong>JrTechDesk Completo</strong> (técnicos): o Suporte não usa o serviço de gestão da Jrtech, mas o Completo é programado para tentar enviar a ele, periodicamente, o nome do computador, o usuário conectado, o sistema, o hardware, a versão e as conexões ativas. Também tenta enviar um registro de cada conexão <em>recebida</em> por esse computador, com o IP e o nome de quem conectou, e a pasta, os nomes e os tamanhos dos arquivos transferidos.</li>
       <li><strong>Seus direitos (LGPD, art. 18):</strong> sem custo, você pode pedir à Jrtech a confirmação de que tratamos seus dados e o acesso a eles; a correção; a anonimização, o bloqueio ou a eliminação de dados desnecessários, excessivos ou tratados em desconformidade; a portabilidade; a informação sobre com quem eles são compartilhados; e, quando o tratamento depender do seu consentimento, a informação sobre a possibilidade de não consentir e suas consequências, a revogação e a eliminação desses dados. Você também pode se opor a um tratamento irregular. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</li>
     </ul>
   </section>

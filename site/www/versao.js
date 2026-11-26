@@ -11,7 +11,8 @@ fetch('/download/versao.json', { cache: 'no-cache' })
       el.hidden = false;
     }
     // Links com a tag no caminho: pacote, SHA256SUMS.txt e código-fonte da mesma versão.
-    if (typeof v?.tag === 'string' && /^v[0-9A-Za-z.-]+$/.test(v.tag)) {
+    const tagOk = typeof v?.tag === 'string' && /^v[0-9A-Za-z.-]+$/.test(v.tag);
+    if (tagOk) {
       for (const a of document.querySelectorAll('[data-arquivo]')) {
         if (v.arquivos?.[a.dataset.arquivo]) {
           a.href = `/versoes/${v.tag}/${a.dataset.arquivo}`;
@@ -31,7 +32,6 @@ fetch('/download/versao.json', { cache: 'no-cache' })
       }
     }
     // O hash só aparece quando os links já apontam para a mesma tag.
-    const tagOk = typeof v?.tag === 'string' && /^v[0-9A-Za-z.-]+$/.test(v.tag);
     for (const span of tagOk ? document.querySelectorAll('[data-sha256]') : []) {
       const hash = v?.arquivos?.[span.dataset.sha256]?.sha256;
       if (typeof hash === 'string' && /^[0-9a-f]{64}$/.test(hash)) {

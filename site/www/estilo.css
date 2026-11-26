@@ -121,6 +121,7 @@ kbd {
   min-width: min(100%, 340px);
   padding: 16px 26px;
   background: var(--verde);
+  border: 2px solid transparent;
   border-radius: 8px;
   text-decoration: none;
 }
@@ -213,6 +214,8 @@ kbd {
 .pacote-arquivo { font: 0.8rem/1.4 var(--mono); color: var(--suave); overflow-wrap: anywhere; }
 .pacote-arquivo [data-tamanho] { white-space: pre; }
 
+.comando[data-copiar] { position: relative; min-height: 62px; padding-right: 96px !important; }
+.comando[data-copiar] .copiar { position: absolute; right: 8px; top: 8px; }
 .comando {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   margin: 8px 0 0;
@@ -281,7 +284,7 @@ kbd {
     color: var(--hero-suave);
   }
   .so-celular strong { color: var(--hero-texto); }
-  .endereco { font-family: var(--mono); font-size: 0.92em; overflow-wrap: anywhere; color: var(--hero-texto); }
+  .endereco { font-family: var(--mono); font-size: 0.92em; color: var(--hero-texto); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -297,6 +300,9 @@ kbd {
 }
 
 @media (max-width: 640px) {
+  .hero-grade { padding-top: 32px; }
+  .comando[data-copiar] { padding-right: 14px !important; padding-bottom: 60px; }
+  .comando[data-copiar] .copiar { top: auto; bottom: 8px; }
   .largura { padding-left: 16px; padding-right: 16px; }
   .plataforma .pacotes { grid-template-columns: minmax(0, 1fr); }
   .botao { display: flex; width: 100%; }

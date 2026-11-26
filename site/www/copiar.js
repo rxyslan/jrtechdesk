@@ -25,10 +25,9 @@ for (const pre of document.querySelectorAll('pre[data-copiar]')) {
   botao.type = 'button';
   botao.className = 'copiar';
   botao.textContent = 'Copiar';
-  botao.setAttribute('aria-label', `Copiar ${pre.dataset.copiar || 'comando'}: ${code.textContent}`);
+  botao.setAttribute('aria-label', pre.dataset.copiar ? `Copiar ${pre.dataset.copiar}` : `Copiar comando: ${code.textContent}`);
   let volta;
   botao.addEventListener('click', async () => {
-    botao.setAttribute('aria-label', `Copiar ${pre.dataset.copiar || 'comando'}: ${code.textContent}`);
     let ok = false;
     try {
       await navigator.clipboard.writeText(code.textContent);
