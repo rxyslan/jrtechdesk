@@ -1,11 +1,7 @@
 # Site de download do JrTechDesk (CT 106).
-baixar.desbloqueiorepidclass.com.br {
-	# A validação HTTP-01 usa a porta 80. A porta 443 serve o site.
-	tls {
-		issuer acme {
-			disable_tlsalpn_challenge
-		}
-	}
+# Só HTTP na porta 80: o HTTPS e o certificado ficam no Caddy de borda, que recebe as
+# portas 80/443 públicas e faz reverse_proxy para 192.168.15.250:80 (ver LEIA-ME.md).
+http://baixar.desbloqueiorepidclass.com.br {
 
 	encode gzip
 	header {
@@ -22,6 +18,18 @@ baixar.desbloqueiorepidclass.com.br {
 		@instalador path *.exe *.deb *.zst
 		header @instalador Content-Disposition attachment
 		file_server
+	}
+
+	# Mesmos arquivos, com a tag no caminho, para o pacote e o SHA256SUMS.txt sempre
+	# virem da mesma versão mesmo se o timer trocar a release entre os dois downloads.
+	handle_path /versoes/* {
+		root * /site/releases
+		header Cache-Control "public, max-age=31536000, immutable"
+		@instalador_v path *.exe *.deb *.zst
+		header @instalador_v Content-Disposition attachment
+		file_server {
+			hide .*
+		}
 	}
 
 	handle {

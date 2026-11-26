@@ -25,7 +25,7 @@
 
     <a class="botao" href="/download/JrTechDesk-suporte.exe" download>
       <span class="botao-titulo">Baixar JrTechDesk Suporte</span>
-      <span class="botao-sub">Windows 10 e 11<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
+      <span class="botao-sub">Windows 10 e 11 (64 bits)<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
     </a>
     <p class="versao" data-versao hidden></p>
 
@@ -47,18 +47,18 @@
         <tbody>
           <tr>
             <th scope="row">Windows 10 e 11</th>
-            <td><a href="/download/JrTechDesk-completo.exe" download aria-label="Baixar Completo para Windows">Baixar</a></td>
-            <td><a href="/download/JrTechDesk-suporte.exe" download aria-label="Baixar Suporte para Windows">Baixar</a></td>
+            <td><a href="/download/JrTechDesk-completo.exe" data-arquivo="JrTechDesk-completo.exe" download aria-label="Baixar Completo para Windows">Baixar</a></td>
+            <td><a href="/download/JrTechDesk-suporte.exe" data-arquivo="JrTechDesk-suporte.exe" download aria-label="Baixar Suporte para Windows">Baixar</a></td>
           </tr>
           <tr>
             <th scope="row">Ubuntu, Debian e derivados</th>
-            <td><a href="/download/jrtechdesk-completo.deb" download aria-label="Baixar Completo para Ubuntu e Debian">Baixar</a></td>
-            <td><a href="/download/jrtechdesk-suporte.deb" download aria-label="Baixar Suporte para Ubuntu e Debian">Baixar</a></td>
+            <td><a href="/download/jrtechdesk-completo.deb" data-arquivo="jrtechdesk-completo.deb" download aria-label="Baixar Completo para Ubuntu e Debian">Baixar</a></td>
+            <td><a href="/download/jrtechdesk-suporte.deb" data-arquivo="jrtechdesk-suporte.deb" download aria-label="Baixar Suporte para Ubuntu e Debian">Baixar</a></td>
           </tr>
           <tr>
             <th scope="row">Arch Linux e derivados</th>
-            <td><a href="/download/jrtechdesk-completo.pkg.tar.zst" download aria-label="Baixar Completo para Arch Linux">Baixar</a></td>
-            <td><a href="/download/jrtechdesk-suporte.pkg.tar.zst" download aria-label="Baixar Suporte para Arch Linux">Baixar</a></td>
+            <td><a href="/download/jrtechdesk-completo.pkg.tar.zst" data-arquivo="jrtechdesk-completo.pkg.tar.zst" download aria-label="Baixar Completo para Arch Linux">Baixar</a></td>
+            <td><a href="/download/jrtechdesk-suporte.pkg.tar.zst" data-arquivo="jrtechdesk-suporte.pkg.tar.zst" download aria-label="Baixar Suporte para Arch Linux">Baixar</a></td>
           </tr>
         </tbody>
       </table>
@@ -66,15 +66,15 @@
 
     <ul class="notas">
       <li>Linux: <code>sudo apt install ./jrtechdesk-completo.deb</code> ou <code>sudo pacman -U jrtechdesk-completo.pkg.tar.zst</code>.</li>
-      <li>O programa avisa quando há versão nova; ninguém precisa voltar aqui para atualizar.</li>
-      <li>Para conferir os arquivos: <a href="/download/SHA256SUMS.txt">SHA256SUMS.txt</a>.</li>
+      <li>O programa avisa quando há versão nova. No Windows, ele mesmo atualiza; no Linux, baixe e instale o pacote novo.</li>
+      <li>Para conferir os arquivos: <a href="/download/SHA256SUMS.txt" data-arquivo="SHA256SUMS.txt">SHA256SUMS.txt</a>.</li>
     </ul>
   </section>
 </main>
 
 <footer class="rodape">
   <p>JrTechDesk é baseado no RustDesk e distribuído sob a licença AGPL-3.0.
-  <a href="https://github.com/rxyslan/jrtechdesk">Código-fonte</a></p>
+  <a href="https://github.com/rxyslan/jrtechdesk" data-fonte>Código-fonte</a></p>
 </footer>
 <script src="versao.js" defer></script>
 </body>

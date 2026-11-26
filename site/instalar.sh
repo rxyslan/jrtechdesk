@@ -69,6 +69,27 @@ if ! mv -T "$novo/Caddyfile" "$BASE/Caddyfile" ||
   fi
   exit 1
 fi
+# Só descarta o contêiner anterior depois que o novo servir a página de verdade.
+servindo=
+for _ in $(seq 1 15); do
+  if curl -fsS --max-time 3 -H 'Host: baixar.desbloqueiorepidclass.com.br' http://127.0.0.1/ 2>/dev/null |
+    grep -q 'JrTechDesk'; then
+    servindo=1
+    break
+  fi
+  sleep 1
+done
+if [[ -z "$servindo" ]]; then
+  echo "O novo Caddy não respondeu em http://127.0.0.1/. Voltando ao anterior." >&2
+  docker logs --tail 20 "$CONTAINER" >&2 || true
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  if [[ -n "$anterior" ]]; then
+    mv -T "$novo/Caddyfile.anterior" "$BASE/Caddyfile"
+    docker rename "$anterior" "$CONTAINER"
+    docker start "$CONTAINER"
+  fi
+  exit 1
+fi
 if [[ -n "$anterior" ]]; then
   docker rm "$anterior" || echo "Não foi possível remover o contêiner anterior: $anterior" >&2
 fi

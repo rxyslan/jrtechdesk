@@ -16,6 +16,20 @@ ARQUIVOS=(
   SHA256SUMS.txt
 )
 
+# Espaço que precisa sobrar no disco depois do download (o CT também roda hbbs/hbbr).
+RESERVA_MB="${JRTECH_SITE_RESERVA_MB:-1024}"
+
+# A pasta publicada tem o versao.json e todos os arquivos com o tamanho registrado nele?
+publicacao_completa() {
+  local pasta=$1 nome esperado
+  [[ -f "$pasta/versao.json" ]] || return 1
+  jq -e --arg t "$tag" '.tag == $t' "$pasta/versao.json" >/dev/null 2>&1 || return 1
+  for nome in "${ARQUIVOS[@]}"; do
+    esperado=$(jq -er --arg n "$nome" '.arquivos[$n].tamanho' "$pasta/versao.json" 2>/dev/null) || return 1
+    [[ -f "$pasta/$nome" && "$(stat -c %s "$pasta/$nome")" == "$esperado" ]] || return 1
+  done
+}
+
 mkdir -p "$BASE/releases"
 exec 9>"$BASE/.sincronizar.lock"
 if ! flock -n 9; then
@@ -41,8 +55,11 @@ publicada=$(jq -er '.published_at' <<<"$json")
 
 destino="$BASE/releases/$tag"
 atual=$(readlink "$BASE/download" 2>/dev/null || true)
-if [[ "$atual" == "releases/$tag" ]]; then
+if [[ "$atual" == "releases/$tag" ]] && publicacao_completa "$destino"; then
   exit 0
+fi
+if [[ "$atual" == "releases/$tag" ]]; then
+  echo "$tag: a versão publicada está incompleta; baixando de novo." >&2
 fi
 if [[ -e "$BASE/download" && ! -L "$BASE/download" ]]; then
   echo "O caminho $BASE/download precisa ser um link simbólico." >&2
@@ -70,8 +87,8 @@ for nome in "${ARQUIVOS[@]}"; do
 done
 
 disponivel=$(df -B1 --output=avail "$BASE/releases" | tail -n 1)
-if (( disponivel < total + 1048576 )); then
-  echo "$tag: espaço insuficiente para baixar a release. A versão publicada foi mantida." >&2
+if (( disponivel < total + RESERVA_MB * 1048576 )); then
+  echo "$tag: espaço insuficiente (precisa de $(( total / 1048576 )) MB + reserva de $RESERVA_MB MB). A versão publicada foi mantida." >&2
   exit 1
 fi
 
@@ -95,7 +112,7 @@ for nome in "${ARQUIVOS[@]}"; do
 done
 
 jq -n --arg v "${tag#v}" --arg p "$publicada" --argjson a "$arquivos_json" \
-  '{versao: $v, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
+  --arg t "$tag" '{versao: $v, tag: $t, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
 chmod -R a+rX "$tmp"
 ln -sT "releases/$tag" "$BASE/download.novo"
 rm -rf -- "$destino"

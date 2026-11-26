@@ -10,6 +10,16 @@ fetch('/download/versao.json', { cache: 'no-cache' })
       el.textContent = `Versão ${v.versao}` + (publicada ? ` · ${publicada}` : '');
       el.hidden = false;
     }
+    // Links com a tag no caminho: pacote, SHA256SUMS.txt e código-fonte da mesma versão.
+    if (typeof v?.tag === 'string' && /^v[0-9A-Za-z.-]+$/.test(v.tag)) {
+      for (const a of document.querySelectorAll('[data-arquivo]')) {
+        if (v.arquivos?.[a.dataset.arquivo]) {
+          a.href = `/versoes/${v.tag}/${a.dataset.arquivo}`;
+        }
+      }
+      const fonte = document.querySelector('[data-fonte]');
+      if (fonte) fonte.href = `https://github.com/rxyslan/jrtechdesk/tree/${v.tag}`;
+    }
     for (const span of document.querySelectorAll('[data-tamanho]')) {
       const bytes = v?.arquivos?.[span.dataset.tamanho]?.tamanho;
       if (Number.isFinite(bytes) && bytes >= 1000000) {
