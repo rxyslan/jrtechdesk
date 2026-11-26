@@ -1,0 +1,65 @@
+# Site de download do JrTechDesk (CT 106).
+# Só HTTP na porta 80: o HTTPS e o certificado ficam no Caddy de borda, que recebe as
+# portas 80/443 públicas e faz reverse_proxy para 192.168.15.250:80 (ver LEIA-ME.md).
+http://baixar.desbloqueiorepidclass.com.br {
+
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		-Server
+		# Identifica o contêiner que respondeu (o instalador confere antes de trocar).
+		X-JrTechDesk-Site {env.JRTECH_SITE_ID}
+	}
+	# Respostas de erro nunca ficam em cache nem viram "arquivo para salvar".
+	header {
+		Cache-Control "no-store"
+		-Content-Disposition
+		match status 4xx 5xx
+	}
+
+	handle_path /download/* {
+		root * /site/download
+		header {
+			Cache-Control "no-cache"
+			match status 200 206 304
+		}
+		@instalador path *.exe *.deb *.zst
+		header @instalador Content-Disposition attachment
+		file_server
+	}
+
+	# Mesmos arquivos, com a tag no caminho, para o pacote e o SHA256SUMS.txt sempre
+	# virem da mesma versão mesmo se o timer trocar a release entre os dois downloads.
+	handle_path /versoes/* {
+		root * /site/releases
+		# Cache longo só para resposta de sucesso; o status é conferido na resposta.
+		header {
+			Cache-Control "public, max-age=31536000, immutable"
+			match status 200 206 304
+		}
+		@instalador_v path *.exe *.deb *.zst
+		header @instalador_v Content-Disposition attachment
+		file_server {
+			hide .*
+		}
+	}
+
+	handle {
+		root * /site/www
+		header {
+			Cache-Control "no-cache"
+			match status 200 304
+		}
+		file_server
+	}
+
+	handle_errors {
+		header Cache-Control "no-store"
+		header X-Content-Type-Options nosniff
+		header -Content-Disposition
+		respond "{err.status_code} {err.status_text}"
+	}
+}

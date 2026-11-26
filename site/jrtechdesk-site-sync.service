@@ -1,0 +1,18 @@
+[Unit]
+Description=Atualiza o site de download do JrTechDesk com a release mais recente
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/jrtechdesk-site/sincronizar.sh
+TimeoutStartSec=8min
+Nice=19
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=/opt/jrtechdesk-site
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes

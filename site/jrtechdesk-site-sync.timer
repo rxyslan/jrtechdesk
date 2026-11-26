@@ -1,0 +1,9 @@
+[Unit]
+Description=Atualiza o site de download do JrTechDesk a cada 10 minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target
