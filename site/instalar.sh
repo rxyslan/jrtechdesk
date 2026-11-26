@@ -39,7 +39,7 @@ limpar_preparo=1
 rm -f -- "$BASE/www.novo"
 mkdir -p "$BASE/$www_nova/img"
 install -m 0644 www/img/*.png "$BASE/$www_nova/img/"
-install -m 0644 www/estilo.css www/versao.js www/index.html "$BASE/$www_nova/"
+install -m 0644 www/estilo.css www/versao.js www/copiar.js www/index.html "$BASE/$www_nova/"
 install -m 0644 Caddyfile "$novo/"
 install -m 0755 sincronizar.sh "$novo/"
 install -m 0644 jrtechdesk-site-sync.service jrtechdesk-site-sync.timer "$novo/"

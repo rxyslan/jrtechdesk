@@ -6,7 +6,7 @@ o HTTPS fica no Caddy de borda que já recebe as portas 80/443 públicas da rede
 
 | Arquivo | Função |
 |---|---|
-| `www/` | A página (HTML, CSS, imagens). `versao.js` mostra a versão lendo `/download/versao.json`. |
+| `www/` | A página (HTML, CSS, imagens). `versao.js` mostra a versão lendo `/download/versao.json`; `copiar.js` põe o botão Copiar nos comandos. |
 | `Caddyfile` | Caddy do CT 106, só HTTP: `/` = página, `/download/` = versão atual, `/versoes/<tag>/` = mesma coisa com a tag no caminho. |
 | `sincronizar.sh` | Baixa os instaladores da release mais recente do GitHub, confere o SHA-256 de cada um e só então troca a versão publicada. |
 | `jrtechdesk-site-sync.*` | Timer do systemd que volta a rodar `sincronizar.sh` 10 min após a última execução. |
