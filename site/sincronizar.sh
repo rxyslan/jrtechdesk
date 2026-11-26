@@ -111,6 +111,21 @@ for nome in "${ARQUIVOS[@]}"; do
     '. + {($n): {sha256: $h, tamanho: $t}}' <<<"$arquivos_json")
 done
 
+if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
+  # Reparo da versão já publicada: troca só os arquivos com problema, um a um (mv é
+  # atômico), sem apagar a pasta que o site está servindo nem mexer na versão anterior.
+  jq -n --arg v "${tag#v}" --arg p "$publicada" --argjson a "$arquivos_json" \
+    --arg t "$tag" '{versao: $v, tag: $t, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
+  chmod -R a+rX "$tmp"
+  for nome in "${ARQUIVOS[@]}" versao.json; do
+    if ! cmp -s "$tmp/$nome" "$destino/$nome"; then
+      mv -f "$tmp/$nome" "$destino/$nome"
+      echo "$tag: $nome reparado"
+    fi
+  done
+  exit 0
+fi
+
 jq -n --arg v "${tag#v}" --arg p "$publicada" --argjson a "$arquivos_json" \
   --arg t "$tag" '{versao: $v, tag: $t, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
 chmod -R a+rX "$tmp"

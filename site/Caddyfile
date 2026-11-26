@@ -10,6 +10,8 @@ http://baixar.desbloqueiorepidclass.com.br {
 		Referrer-Policy no-referrer
 		Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 		-Server
+		# Identifica o contêiner que respondeu (o instalador confere antes de trocar).
+		X-JrTechDesk-Site {env.JRTECH_SITE_ID}
 	}
 
 	handle_path /download/* {
@@ -24,7 +26,17 @@ http://baixar.desbloqueiorepidclass.com.br {
 	# virem da mesma versão mesmo se o timer trocar a release entre os dois downloads.
 	handle_path /versoes/* {
 		root * /site/releases
-		header Cache-Control "public, max-age=31536000, immutable"
+		# Cache longo só para arquivo que existe; um 404 não pode ficar guardado.
+		@existe {
+			file
+			not path_regexp /\.
+		}
+		header @existe Cache-Control "public, max-age=31536000, immutable"
+		@falta not {
+			file
+			not path_regexp /\.
+		}
+		header @falta Cache-Control "no-store"
 		@instalador_v path *.exe *.deb *.zst
 		header @instalador_v Content-Disposition attachment
 		file_server {
