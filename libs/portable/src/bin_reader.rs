@@ -201,12 +201,12 @@ fn read_resource(name: &str) -> Option<&'static [u8]> {
 }
 
 impl BinaryData {
-    fn decompress(&self) -> Vec<u8> {
+    fn decompress(&self) -> std::io::Result<Vec<u8>> {
         let cursor = Cursor::new(self.raw);
         let mut decoder = brotli::Decompressor::new(cursor, BUF_SIZE);
         let mut buf = Vec::new();
-        decoder.read_to_end(&mut buf).ok();
-        buf
+        decoder.read_to_end(&mut buf)?;
+        Ok(buf)
     }
 
     pub fn write_to_file(&self, prefix: &Path) -> std::io::Result<()> {
@@ -230,7 +230,17 @@ impl BinaryData {
                 println!("{} -> {}", md5_record, digest)
             }
         }
-        fs::write(p, self.decompress())
+        // Descompacta e confere com o MD5 registrado antes de gravar: um pacote corrompido
+        // falha aqui, em vez de deixar um arquivo truncado no lugar.
+        let data = self.decompress()?;
+        let md5_record = String::from_utf8_lossy(self.md5_code);
+        if format!("{:x}", md5::compute(&data)) != md5_record {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("{} não confere com o MD5 do pacote", self.path),
+            ));
+        }
+        fs::write(p, data)
     }
 }
 

@@ -239,7 +239,7 @@ fn is_windows_7() -> bool {
     false
 }
 
-fn execute(path: PathBuf, args: Vec<String>, _ui: bool) -> bool {
+fn execute(path: PathBuf, args: Vec<String>, _ui: bool) -> Option<std::process::Child> {
     println!("executing {}", path.display());
     // setup env
     let exe = std::env::current_exe().unwrap_or_default();
@@ -270,11 +270,10 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) -> bool {
             .stderr(Stdio::inherit());
     }
     let _child = cmd.spawn();
-    let started = _child.is_ok();
 
     #[cfg(windows)]
     if _ui {
-        match _child {
+        match &_child {
             Ok(child) => unsafe {
                 winapi::um::winuser::AllowSetForegroundWindow(child.id() as u32);
             },
@@ -283,7 +282,7 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) -> bool {
             }
         }
     }
-    started
+    _child.ok()
 }
 
 fn main() -> Result<(), String> {
@@ -312,12 +311,22 @@ fn main() -> Result<(), String> {
     }
 
     let mut ui = false;
-    let reader = BinaryReader::new()?;
     // JrTechDesk: aberto pela versão antiga depois de ela trocar o .exe (ver
     // src/platform/windows/verified_update.rs). A cópia anterior (.old) só é apagada depois
-    // que esta versão extraiu e abriu; se falhar, ela volta para o lugar.
+    // que esta versão leu o pacote, extraiu e o app abriu sem fechar com erro; se algo
+    // falhar, ela volta para o lugar.
     #[cfg(windows)]
     let updating = std::env::var_os(JRTECH_UPDATE_WAIT_PID_ENV_KEY).is_some();
+    let reader = match BinaryReader::new() {
+        Ok(reader) => reader,
+        Err(e) => {
+            #[cfg(windows)]
+            if updating && win::restore_previous_copy() {
+                std::process::exit(1);
+            }
+            return Err(e);
+        }
+    };
     // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
     // antes de extrair, senão os arquivos dela ainda estão em uso.
     #[cfg(windows)]
@@ -336,7 +345,8 @@ fn main() -> Result<(), String> {
         &args,
         &mut ui,
     );
-    let started = if let Some(exe) = setup_result {
+    let extracted = setup_result.is_some();
+    let child = if let Some(exe) = setup_result {
         if click_setup {
             args = vec!["--install".to_owned()];
         } else if quick_support {
@@ -344,11 +354,11 @@ fn main() -> Result<(), String> {
         }
         execute(exe, args, ui)
     } else {
-        false
+        None
     };
     #[cfg(windows)]
     if updating {
-        if started {
+        if child.is_some_and(win::app_survived_start) {
             win::remove_previous_copy();
         } else if win::restore_previous_copy() {
             std::process::exit(1);
@@ -356,8 +366,12 @@ fn main() -> Result<(), String> {
             win::show_error("A atualização do JrTechDesk não pôde terminar e a versão anterior não foi encontrada.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
             std::process::exit(1);
         }
+    } else if !extracted {
+        win::show_error("O JrTechDesk não conseguiu preparar os próprios arquivos.\n\nFeche o JrTechDesk que estiver aberto e abra este arquivo de novo.");
+        std::process::exit(1);
     }
-    let _ = started;
+    #[cfg(not(windows))]
+    let _ = (extracted, child);
     Ok(())
 }
 
@@ -442,6 +456,23 @@ mod win {
         let mut path = exe.as_os_str().to_owned();
         path.push(suffix);
         path.into()
+    }
+
+    /// O app aberto pela versão nova continua rodando (ou terminou sem erro) depois de alguns
+    /// segundos? Um app que fecha com erro logo ao abrir conta como atualização que falhou.
+    pub(super) fn app_survived_start(mut child: std::process::Child) -> bool {
+        let start = std::time::Instant::now();
+        while start.elapsed() < std::time::Duration::from_secs(10) {
+            match child.try_wait() {
+                Ok(Some(status)) => return status.success(),
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(250)),
+                Err(e) => {
+                    eprintln!("failed to check the new version: {}", e);
+                    return true;
+                }
+            }
+        }
+        true
     }
 
     /// A versão nova extraiu e abriu: a cópia anterior não é mais necessária.

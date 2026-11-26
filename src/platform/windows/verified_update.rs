@@ -103,9 +103,9 @@ fn portable_sibling(target: &Path, suffix: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-/// Grava a versão nova ao lado (`.new`), confere o tamanho e só então troca por renomeação
-/// no mesmo volume: em nenhum momento falta um .exe íntegro no caminho de sempre.
-/// Retorna onde ficou a versão anterior (`.old`).
+/// Grava a versão nova ao lado (`.new`), confere o tamanho e só então troca com
+/// `ReplaceFileW`, que põe a nova no lugar e guarda a anterior (`.old`) numa operação só
+/// do sistema de arquivos. Retorna onde ficou a versão anterior.
 fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> ResultType<PathBuf> {
     let staged = portable_sibling(target, ".new");
     let old = portable_sibling(target, ".old");
@@ -135,17 +135,35 @@ fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> Re
             bail!("falha ao apagar a cópia antiga {}: {}", old.display(), e);
         }
     }
-    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
-    if let Err(e) = std::fs::rename(target, &old) {
+    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para trocar.
+    if let Err(e) = swap_portable_exe(target, &staged, &old) {
+        // Conforme o ponto em que falhou, a anterior pode ter ficado só como .old.
+        if !target.exists() && old.exists() {
+            restore_portable_exe(target, &old);
+        }
         allow_err!(std::fs::remove_file(&staged));
-        bail!("falha ao trocar {}: {}", target.display(), e);
-    }
-    if let Err(e) = std::fs::rename(&staged, target) {
-        allow_err!(std::fs::remove_file(&staged));
-        restore_portable_exe(target, &old);
         bail!("falha ao pôr a versão nova em {}: {}", target.display(), e);
     }
     Ok(old)
+}
+
+fn swap_portable_exe(target: &Path, staged: &Path, old: &Path) -> ResultType<()> {
+    use windows::{
+        core::HSTRING,
+        Win32::Storage::FileSystem::{ReplaceFileW, REPLACEFILE_WRITE_THROUGH},
+    };
+
+    unsafe {
+        ReplaceFileW(
+            &HSTRING::from(target),
+            &HSTRING::from(staged),
+            &HSTRING::from(old),
+            REPLACEFILE_WRITE_THROUGH,
+            None,
+            None,
+        )
+    }
+    .map_err(|err| anyhow!("{}", err))
 }
 
 fn restore_portable_exe(target: &Path, old: &Path) {
