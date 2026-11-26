@@ -102,10 +102,10 @@ voltar() {
       mv -T "$BASE/Caddyfile.restaurando" "$BASE/Caddyfile" || falhou=1
   fi
   if [[ -n "$anterior" ]]; then
-    if docker container inspect "$anterior" >/dev/null 2>&1; then
-      docker rename "$anterior" "$CONTAINER" || falhou=1
-    fi
-    docker start "$CONTAINER" >/dev/null || falhou=1
+    # Pelo ID original: funciona tenha ou não chegado a ser renomeado ou parado.
+    docker rename "$cid" "$CONTAINER" >/dev/null 2>&1
+    docker start "$cid" >/dev/null || falhou=1
+    [[ "$(docker ps -q --no-trunc --filter "id=$cid" --filter "name=^/${CONTAINER}\$")" == "$cid" ]] || falhou=1
   fi
   [[ -f "$BASE/www/index.html" ]] || falhou=1
   if [[ -n "$falhou" ]]; then
