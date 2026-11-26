@@ -234,6 +234,10 @@ pub async fn create_tcp_connection(
             bail!("evicted to make room for a newer unauthenticated connection");
         }
     }
+    // O Suporte não aceita sessão sem criptografia, mesmo que o técnico confirme.
+    if crate::common::jrtech_suporte() && !stream.is_secured() && !stream.is_webrtc() {
+        bail!("conexão sem criptografia recusada (JrTechDesk Suporte)");
+    }
 
     #[cfg(target_os = "macos")]
     {

@@ -209,7 +209,7 @@ impl BinaryData {
         buf
     }
 
-    pub fn write_to_file(&self, prefix: &Path) {
+    pub fn write_to_file(&self, prefix: &Path) -> std::io::Result<()> {
         let p = prefix.join(&self.path);
         if let Some(parent) = p.parent() {
             if !parent.exists() {
@@ -224,13 +224,13 @@ impl BinaryData {
             if digest == md5_record {
                 // same, skip this file
                 println!("skip {}", &self.path);
-                return;
+                return Ok(());
             } else {
                 println!("writing {}", p.display());
                 println!("{} -> {}", md5_record, digest)
             }
         }
-        let _ = fs::write(p, self.decompress());
+        fs::write(p, self.decompress())
     }
 }
 

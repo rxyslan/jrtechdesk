@@ -82,44 +82,84 @@ pub fn update_portable_to_verified(
     let result = update_file
         .verify_size(expected_size)
         .and_then(|_| update_file.path_str().map(|p| p.to_owned()))
-        .and_then(|new_exe| replace_portable_exe(&target, Path::new(&new_exe)));
+        .and_then(|new_exe| replace_portable_exe(&target, Path::new(&new_exe), expected_size));
     update_file.cleanup();
-    result?;
+    let old = result?;
 
-    std::process::Command::new(&target)
+    // O packer novo apaga o .old só depois de extrair e abrir; se falhar, ele o restaura.
+    if let Err(e) = std::process::Command::new(&target)
         .env(JRTECH_UPDATE_WAIT_PID_ENV_KEY, std::process::id().to_string())
         .spawn()
-        .map_err(|e| anyhow!("falha ao abrir a versão nova {}: {}", target.display(), e))?;
+    {
+        restore_portable_exe(&target, &old);
+        bail!("falha ao abrir a versão nova {}: {}", target.display(), e);
+    }
     Ok(())
 }
 
-fn replace_portable_exe(target: &Path, new_exe: &Path) -> ResultType<()> {
-    let mut old = target.as_os_str().to_owned();
-    old.push(".old");
-    let old = PathBuf::from(old);
-    if old.exists() {
-        std::fs::remove_file(&old)
-            .map_err(|e| anyhow!("falha ao apagar a cópia antiga {}: {}", old.display(), e))?;
+fn portable_sibling(target: &Path, suffix: &str) -> PathBuf {
+    let mut path = target.as_os_str().to_owned();
+    path.push(suffix);
+    PathBuf::from(path)
+}
+
+/// Grava a versão nova ao lado (`.new`), confere o tamanho e só então troca por renomeação
+/// no mesmo volume: em nenhum momento falta um .exe íntegro no caminho de sempre.
+/// Retorna onde ficou a versão anterior (`.old`).
+fn replace_portable_exe(target: &Path, new_exe: &Path, expected_size: u64) -> ResultType<PathBuf> {
+    let staged = portable_sibling(target, ".new");
+    let old = portable_sibling(target, ".old");
+    if staged.exists() {
+        std::fs::remove_file(&staged)
+            .map_err(|e| anyhow!("falha ao apagar {}: {}", staged.display(), e))?;
     }
-    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
-    std::fs::rename(target, &old)
-        .map_err(|e| anyhow!("falha ao trocar {}: {}", target.display(), e))?;
-    if let Err(e) = std::fs::copy(new_exe, target) {
-        if target.exists() {
-            allow_err!(std::fs::remove_file(target));
-        }
-        if let Err(rollback) = std::fs::rename(&old, target) {
-            log::warn!("Falha ao restaurar {}: {}", target.display(), rollback);
+    match std::fs::copy(new_exe, &staged) {
+        Ok(copied) if copied == expected_size => {}
+        Ok(copied) => {
+            allow_err!(std::fs::remove_file(&staged));
             bail!(
-                "falha ao gravar a versão nova em {}: {}; a versão anterior ficou em {}",
-                target.display(),
-                e,
-                old.display()
+                "a versão nova ficou com {} bytes em {}, esperado {}",
+                copied,
+                staged.display(),
+                expected_size
             );
         }
-        bail!("falha ao gravar a versão nova em {}: {}", target.display(), e);
+        Err(e) => {
+            allow_err!(std::fs::remove_file(&staged));
+            bail!("falha ao gravar a versão nova em {}: {}", staged.display(), e);
+        }
     }
-    Ok(())
+    if old.exists() {
+        if let Err(e) = std::fs::remove_file(&old) {
+            allow_err!(std::fs::remove_file(&staged));
+            bail!("falha ao apagar a cópia antiga {}: {}", old.display(), e);
+        }
+    }
+    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
+    if let Err(e) = std::fs::rename(target, &old) {
+        allow_err!(std::fs::remove_file(&staged));
+        bail!("falha ao trocar {}: {}", target.display(), e);
+    }
+    if let Err(e) = std::fs::rename(&staged, target) {
+        allow_err!(std::fs::remove_file(&staged));
+        restore_portable_exe(target, &old);
+        bail!("falha ao pôr a versão nova em {}: {}", target.display(), e);
+    }
+    Ok(old)
+}
+
+fn restore_portable_exe(target: &Path, old: &Path) {
+    if target.exists() {
+        allow_err!(std::fs::remove_file(target));
+    }
+    if let Err(e) = std::fs::rename(old, target) {
+        log::warn!(
+            "Falha ao restaurar {} a partir de {}: {}",
+            target.display(),
+            old.display(),
+            e
+        );
+    }
 }
 
 fn launch_verified_update(
