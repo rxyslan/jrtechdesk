@@ -8,7 +8,7 @@ o HTTPS fica no Caddy de borda que já recebe as portas 80/443 públicas da rede
 |---|---|
 | `www/` | A página (HTML, CSS, imagens). `versao.js` mostra a versão lendo `/download/versao.json`; `copiar.js` põe o botão Copiar nos comandos. |
 | `Caddyfile` | Caddy do CT 106, só HTTP: `/` = página, `/download/` = versão atual, `/versoes/<tag>/` = mesma coisa com a tag no caminho. |
-| `sincronizar.sh` | Baixa os instaladores da release mais recente do GitHub, confere o SHA-256 de cada um e só então troca a versão publicada. |
+| `sincronizar.sh` | Baixa os três pacotes do Suporte da release mais recente do GitHub, confere o SHA-256 de cada um e o `.exe` contra o manifesto assinado (chave de atualização da Jrtech), gera o `SHA256SUMS.txt` público e só então troca a versão publicada. |
 | `jrtechdesk-site-sync.*` | Timer do systemd que volta a rodar `sincronizar.sh` 10 min após a última execução. |
 | `instalar.sh` | Instala ou atualiza tudo no CT 106. |
 
@@ -20,19 +20,19 @@ o HTTPS fica no Caddy de borda que já recebe as portas 80/443 públicas da rede
   é de 60 por hora, compartilhado pelas consultas que saem do mesmo IP público.
 - Os arquivos ficam em `/opt/jrtechdesk-site/releases/<tag>/`; `/opt/jrtechdesk-site/download`
   é um link para a versão atual, trocado de uma vez só depois que tudo baixou e conferiu.
-  Ficam guardadas a versão atual e a anterior (~310 MB). A próxima atualização precisa de
-  espaço temporário para mais uma release (~155 MB). Se faltar espaço ou algum arquivo
+  Ficam guardadas a versão atual e a anterior (~160 MB). A próxima atualização precisa de
+  espaço temporário para mais uma release (~80 MB). Se faltar espaço ou algum arquivo
   falhar, o link continua apontando para a versão que já estava publicada.
 - O Caddy roda no Docker (`jrtechdesk-site`, rede do host, porta 80).
 - A sincronização só começa se sobrar pelo menos 1 GB livre depois do download
   (`JRTECH_SITE_RESERVA_MB`), para não apertar o disco do hbbs/hbbr.
 - A cada execução o timer confere tamanho e SHA-256 de todos os arquivos publicados
-  (~155 MB, com prioridade baixa). Se algum sumir ou mudar, baixa de novo e troca só o
+  (~80 MB, com prioridade baixa). Se algum sumir ou mudar, baixa de novo e troca só o
   que estiver errado (arquivo a arquivo), sem tirar do ar o que estava certo.
 - `/versoes/<tag>/` guarda a versão atual e a anterior. Uma aba aberta há duas releases
-  ou mais pode dar 404 nos links dos técnicos; basta recarregar a página. Sem JavaScript,
+  ou mais pode dar 404 nos links de download (inclusive no botão principal); basta recarregar a página. Sem JavaScript,
   os links usam `/download/` (versão atual).
-- A página troca os links dos técnicos e do código-fonte para a tag publicada
+- A página troca os links de download e do código-fonte para a tag publicada
   (`/versoes/<tag>/...` e `tree/<tag>` no GitHub), então o pacote e o SHA256SUMS.txt
   são sempre da mesma versão.
 

@@ -240,8 +240,7 @@ kbd {
 }
 .copiar:hover { border-color: var(--hero-texto); }
 .copiar:focus-visible { outline-color: var(--verde); }
-.estado-copia { flex: 0 0 100%; order: 3; font: 12px/1.3 var(--mono); color: var(--verde); }
-.estado-copia:empty { display: none; }
+.estado-copia { flex: 0 0 100%; order: 3; min-height: 1.3em; font: 12px/1.3 var(--mono); color: var(--verde); }
 
 .verificacao {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center;

@@ -11,7 +11,8 @@ set -Eeuo pipefail
 cd "$(dirname "$0")"
 
 BASE=${JRTECH_SITE_BASE:-/opt/jrtechdesk-site}
-CADDY_IMAGEM="caddy:2.10.0"
+# Tag e digest do índice multiarquitetura: a mesma tag não pode trocar de conteúdo.
+CADDY_IMAGEM="caddy:2.10.0@sha256:133b5eb7ef9d42e34756ba206b06d84f4e3eb308044e268e182c2747083f09de"
 CONTAINER=jrtechdesk-site
 UNITS=${JRTECH_SITE_UNITS:-/etc/systemd/system}
 HOST_PUBLICO=baixar.desbloqueiorepidclass.com.br
@@ -21,9 +22,9 @@ mkdir -p "$BASE/releases"
 exec 9>"$BASE/.instalar.lock"
 flock -n 9 || { echo "Já há uma instalação em andamento." >&2; exit 1; }
 
-command -v jq >/dev/null && command -v curl >/dev/null || {
+command -v jq >/dev/null && command -v curl >/dev/null && command -v openssl >/dev/null || {
   apt-get update -qq
-  apt-get install -y -qq jq curl
+  apt-get install -y -qq jq curl openssl
 }
 
 id_nova=$(date +%Y%m%d%H%M%S)-$$

@@ -1,6 +1,11 @@
 # Site de download do JrTechDesk (CT 106).
 # Só HTTP na porta 80: o HTTPS e o certificado ficam no Caddy de borda, que recebe as
 # portas 80/443 públicas e faz reverse_proxy para 192.168.15.250:80 (ver LEIA-ME.md).
+{
+	# Nada usa a API de administração; o contêiner roda na rede do host.
+	admin off
+}
+
 http://baixar.desbloqueiorepidclass.com.br {
 
 	encode gzip
