@@ -18,7 +18,10 @@ fetch('/download/versao.json', { cache: 'no-cache' })
         }
       }
       const fonte = document.querySelector('[data-fonte]');
-      if (fonte) fonte.href = `https://github.com/rxyslan/jrtechdesk/tree/${v.tag}`;
+      if (fonte) {
+        fonte.href = `https://github.com/rxyslan/jrtechdesk/tree/${v.tag}`;
+        fonte.textContent = 'Código-fonte desta versão';
+      }
     }
     for (const span of document.querySelectorAll('[data-tamanho]')) {
       const bytes = v?.arquivos?.[span.dataset.tamanho]?.tamanho;

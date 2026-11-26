@@ -9,9 +9,18 @@ function selecionar(el) {
   sel.addRange(faixa);
 }
 
+function anunciar(texto) {
+  if (!aviso) return;
+  aviso.textContent = '';
+  requestAnimationFrame(() => { aviso.textContent = texto; });
+}
+
 for (const pre of document.querySelectorAll('pre[data-copiar]')) {
   const code = pre.querySelector('code');
   if (!code) continue;
+  const estado = document.createElement('span');
+  estado.className = 'estado-copia';
+  estado.setAttribute('aria-hidden', 'true');
   const botao = document.createElement('button');
   botao.type = 'button';
   botao.className = 'copiar';
@@ -26,10 +35,10 @@ for (const pre of document.querySelectorAll('pre[data-copiar]')) {
     } catch {
       selecionar(code);
     }
-    botao.textContent = ok ? 'Copiado' : 'Selecionado';
-    if (aviso) aviso.textContent = ok ? 'Comando copiado.' : 'Comando selecionado. Use Ctrl + C para copiar.';
+    estado.textContent = ok ? 'Copiado' : 'Selecionado: use Ctrl + C';
+    anunciar(ok ? 'Comando copiado.' : 'Comando selecionado. Use Ctrl + C para copiar.');
     clearTimeout(volta);
-    volta = setTimeout(() => { botao.textContent = 'Copiar'; }, 2000);
+    volta = setTimeout(() => { estado.textContent = ''; }, ok ? 2000 : 6000);
   });
-  pre.append(botao);
+  pre.append(estado, botao);
 }

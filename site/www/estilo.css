@@ -27,7 +27,7 @@
     --botao: #3ccb78;
     --botao-hover: #5ad690;
     --botao-texto: #0b1a12;
-    --sombra: #000000;
+    --sombra: #4a504c;
   }
 }
 
@@ -141,7 +141,9 @@ h1 {
   font: 13px/1.4 var(--mono);
   color: var(--suave);
   font-variant-numeric: tabular-nums slashed-zero;
+  min-height: 1.4em;
 }
+.versao[hidden] { display: block; visibility: hidden; }
 
 .roteiro { border-left: 1px solid var(--regua); padding-left: 32px; }
 .roteiro .rotulo { margin-bottom: 8px; }
@@ -159,7 +161,6 @@ h1 {
   color: var(--verde);
   font-variant-numeric: tabular-nums;
 }
-.passos strong { display: block; margin-bottom: 2px; }
 
 /* Segurança e ajuda */
 .apoio {
@@ -240,10 +241,15 @@ h1 {
   font: 500 12px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--tinta);
   background: var(--papel);
-  border: 1px solid var(--regua-forte);
+  border: 1px solid var(--suave);
   border-radius: 3px;
   cursor: pointer;
 }
+.estado-copia {
+  flex: none;
+  font: 12px/1.2 var(--mono); color: var(--verde-texto);
+}
+.estado-copia:empty { display: none; }
 .copiar:hover { border-color: var(--tinta); }
 .verificacao { padding-top: 10px; }
 .verificacao p { color: var(--suave); }
@@ -261,14 +267,16 @@ h1 {
   padding-top: 20px; padding-bottom: 40px;
   color: var(--suave); font-size: 0.85rem;
 }
+.rodape { column-gap: 0; }
 .rodape > p { border-top: 1px solid var(--regua); padding-top: 14px; flex: 1 1 280px; }
+.rodape a { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; }
 .rodape > p + p { text-align: right; }
 
 /* Celular e tablet */
 @media (hover: none) and (pointer: coarse) {
   .so-celular {
     display: block;
-    margin-top: 24px;
+    margin-top: 20px;
     padding: 14px 16px;
     background: var(--superficie);
     border: 1px solid var(--regua-forte);
