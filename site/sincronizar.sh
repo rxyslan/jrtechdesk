@@ -17,6 +17,27 @@ MANIFESTO=jrtechdesk-suporte-update.json
 # Baixados da release; o SHA256SUMS.txt publicado é gerado aqui, só com os PACOTES.
 ARQUIVOS=("${PACOTES[@]}" "$MANIFESTO" "$MANIFESTO.sig")
 PUBLICADOS=("${ARQUIVOS[@]}" SHA256SUMS.txt)
+# Da época em que o site espelhava também o Completo: saem das pastas publicadas.
+LEGADOS=(
+  JrTechDesk-completo.exe
+  jrtechdesk-completo.deb
+  jrtechdesk-completo.pkg.tar.zst
+  jrtechdesk-update.json
+  jrtechdesk-update.json.sig
+)
+
+remover_legados() {
+  local pasta nome
+  for pasta in "$BASE"/releases/v*; do
+    [[ -d "$pasta" && ! -L "$pasta" ]] || continue
+    for nome in "${LEGADOS[@]}"; do
+      if [[ -f "$pasta/$nome" && ! -L "$pasta/$nome" ]]; then
+        rm -f -- "$pasta/$nome"
+        echo "${pasta##*/}: $nome (Completo) removido"
+      fi
+    done
+  done
+}
 
 # Chave pública de atualização (a mesma de src/update_metadata.rs, em DER/SPKI).
 CHAVE_ATUALIZACAO="MCowBQYDK2VwAyEAxFG1sLnhRUmed9Nkp+TPBUVo+dAF9vSII0V6/0s5S90="
@@ -91,6 +112,7 @@ publicada=$(jq -er '.published_at' <<<"$json")
 destino="$BASE/releases/$tag"
 atual=$(readlink "$BASE/download" 2>/dev/null || true)
 if [[ "$atual" == "releases/$tag" ]] && publicacao_completa "$destino"; then
+  remover_legados
   exit 0
 fi
 if [[ "$atual" == "releases/$tag" ]]; then
@@ -177,6 +199,7 @@ if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
     echo "$tag: o reparo não deixou a versão publicada íntegra" >&2
     exit 1
   fi
+  remover_legados
   exit 0
 fi
 
@@ -191,6 +214,7 @@ tmp=
 # Troca atômica do link que o site serve.
 mv -T "$BASE/download.novo" "$BASE/download"
 echo "site de download agora em $tag"
+remover_legados
 
 # Guarda a versão que estava publicada, inclusive quando a nova tag é mais antiga.
 for pasta in "$BASE"/releases/v*; do

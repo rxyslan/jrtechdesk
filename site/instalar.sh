@@ -26,6 +26,9 @@ command -v jq >/dev/null && command -v curl >/dev/null && command -v openssl >/d
   apt-get update -qq
   apt-get install -y -qq jq curl openssl
 }
+# O sincronizador confere a assinatura ed25519 com "openssl pkeyutl -rawin" (OpenSSL 3+).
+[[ "$(openssl version | awk '{print $2}')" =~ ^([3-9]|[1-9][0-9])\. ]] \
+  || { echo "O sincronizador precisa do OpenSSL 3 ou mais novo ($(openssl version))." >&2; exit 1; }
 
 id_nova=$(date +%Y%m%d%H%M%S)-$$
 www_nova="www-$id_nova"

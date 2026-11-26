@@ -47,9 +47,17 @@ http://baixar.desbloqueiorepidclass.com.br {
 		# virem da mesma versão mesmo se o timer trocar a release entre os dois downloads.
 		handle_path /versoes/* {
 			root * /site/releases
-			# Cache longo só para resposta de sucesso; o status é conferido na resposta.
-			header {
+			# Cache longo só para os pacotes e só para resposta de sucesso. A lista de hashes,
+			# o versao.json e os manifestos podem ser refeitos na mesma tag (reparo), então
+			# são sempre revalidados.
+			@pacote_v path *.exe *.deb *.zst
+			header @pacote_v {
 				Cache-Control "public, max-age=31536000, immutable"
+				match status 200 206 304
+			}
+			@lista_v not path *.exe *.deb *.zst
+			header @lista_v {
+				Cache-Control "no-cache"
 				match status 200 206 304
 			}
 			@instalador_v path *.exe *.deb *.zst
