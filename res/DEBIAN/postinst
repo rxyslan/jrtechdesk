@@ -21,7 +21,14 @@ if [ "$1" = configure ]; then
 			sed -i "s|pkill|/usr/bin/pkill|g" /usr/lib/systemd/system/jrtechdesk.service
 		fi
 		systemctl daemon-reload
-		systemctl enable jrtechdesk
-		systemctl start jrtechdesk
+		# Instalação nova (sem versão anterior em $2) habilita o serviço; numa atualização,
+		# só se o administrador não o tinha desativado (o prerm deixa o registro).
+		if [ -n "$2" ] && [ -e /var/lib/jrtechdesk/servico-desativado ]; then
+			echo "jrtechdesk: serviço continua desativado, como estava antes da atualização"
+		else
+			systemctl enable jrtechdesk
+			systemctl start jrtechdesk
+		fi
+		rm -f /var/lib/jrtechdesk/servico-desativado
 	fi
 fi

@@ -3,13 +3,15 @@ name: JrTechDesk Release
 # Publica uma versão do JrTechDesk no GitHub Releases, em duas etapas:
 #
 #   1. preparar: junta os arquivos de quatro builds já concluídas (Windows completo/suporte,
-#      Linux completo/suporte, todas do mesmo commit e com a mesma versao-jr) numa release
-#      em RASCUNHO. Ninguém vê ainda.
+#      Linux completo/suporte, todas do mesmo commit da main, com a mesma versao-jr e, no
+#      Windows, com os testes Rust rodados) numa release em RASCUNHO. Grava junto o
+#      PROVENIENCIA.json: commit, builds e SHA-256 de cada arquivo aprovado.
 #   2. (opcional) assinar os .exe com o certificado de código e substituir no rascunho.
-#   3. publicar: gera o jrtechdesk-update.json (completo) e o jrtechdesk-suporte-update.json
-#      (suporte), assinados com a nossa chave (segredo JRTECH_UPDATE_ED25519_SEED), a partir
-#      dos arquivos que estão no rascunho, e publica. A partir daí os JrTechDesk avisam
-#      que há versão nova.
+#   3. publicar: só a partir da main e no ambiente "release". Faz checkout do commit das
+#      builds, exige os seis arquivos pelo nome exato e com os hashes do PROVENIENCIA.json
+#      (um .exe só pode diferir se tiver assinatura Authenticode válida), gera e assina o
+#      jrtechdesk-update.json (completo) e o jrtechdesk-suporte-update.json (suporte) e
+#      publica. Se parar no meio, pode rodar de novo: o que já foi assinado é conferido.
 #
 # Os nomes dos arquivos são fixos, então estes links sempre levam à última versão:
 #   https://github.com/rxyslan/jrtechdesk/releases/latest/download/JrTechDesk-suporte.exe
@@ -52,12 +54,19 @@ concurrency:
   group: jrtechdesk-release
   cancel-in-progress: false
 
+env:
+  # Os seis pacotes de toda release, pelo nome exato.
+  PACOTES: >-
+    JrTechDesk-completo.exe JrTechDesk-suporte.exe
+    jrtechdesk-completo.deb jrtechdesk-suporte.deb
+    jrtechdesk-completo.pkg.tar.zst jrtechdesk-suporte.pkg.tar.zst
+
 jobs:
-  release:
+  preparar:
+    if: inputs.etapa == 'preparar'
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ github.token }}
-      ETAPA: ${{ inputs.etapa }}
       VERSAO_JR: ${{ inputs.versao-jr }}
       RUN_WIN_COMPLETO: ${{ inputs.run-windows-completo }}
       RUN_WIN_SUPORTE: ${{ inputs.run-windows-suporte }}
@@ -81,14 +90,12 @@ jobs:
           echo "TAG=v${base}-jr${VERSAO_JR}" >> "$GITHUB_ENV"
           echo "Versão: ${base}-jr${VERSAO_JR}"
 
-      # ---------------------------------------------------------------- preparar
       - name: Conferir as builds
-        if: inputs.etapa == 'preparar'
         shell: bash
         run: |
           set -euo pipefail
-          check_run() { # id workflow padrão-do-log; imprime o commit da build
-            local id="$1" wf="$2" pattern="$3" info
+          check_run() { # id workflow padrão-do-log exige-testes; imprime o commit da build
+            local id="$1" wf="$2" pattern="$3" testes="$4" info
             [[ "$id" =~ ^[0-9]+$ ]] || { echo "::error::ID de build inválido: '$id'" >&2; return 1; }
             info="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
             [ "$(jq -r .name <<<"$info")" = "$wf" ] || { echo "::error::build $id não é do workflow '$wf'" >&2; return 1; }
@@ -97,16 +104,31 @@ jobs:
             gh run view "$id" -R "$GITHUB_REPOSITORY" --log > "log-$id.txt"
             grep -Eq "$pattern" "log-$id.txt" \
               || { echo "::error::build $id não foi feita com versao-jr=$VERSAO_JR" >&2; return 1; }
+            if [ "$testes" = sim ]; then
+              # A build do Windows pode pular os testes (run-tests=false); a release não aceita.
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" --paginate \
+                --jq '.jobs[].steps[] | select(.name == "Run the Rust tests") | .conclusion' > "testes-$id.txt"
+              if ! grep -qx success "testes-$id.txt" || grep -qvx success "testes-$id.txt"; then
+                echo "::error::build $id não rodou os testes Rust com sucesso" >&2; return 1
+              fi
+            fi
             jq -r .head_sha <<<"$info"
           }
-          s1="$(check_run "$RUN_WIN_COMPLETO" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b")"
-          s2="$(check_run "$RUN_WIN_SUPORTE" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b")"
-          s3="$(check_run "$RUN_LINUX_COMPLETO" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b")"
-          s4="$(check_run "$RUN_LINUX_SUPORTE" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b")"
+          s1="$(check_run "$RUN_WIN_COMPLETO" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b" sim)"
+          s2="$(check_run "$RUN_WIN_SUPORTE" "JrTechDesk Windows x64" "JRTECH_RELEASE: ${VERSAO_JR}\b" sim)"
+          s3="$(check_run "$RUN_LINUX_COMPLETO" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b" nao)"
+          s4="$(check_run "$RUN_LINUX_SUPORTE" "JrTechDesk Linux x86_64" "JRTECH_RELEASE=${VERSAO_JR}\b" nao)"
           if [ "$s1" != "$s2" ] || [ "$s1" != "$s3" ] || [ "$s1" != "$s4" ]; then
             echo "::error::as quatro builds precisam ser do mesmo commit ($s1 $s2 $s3 $s4)"; exit 1
           fi
+          [[ "$s1" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit inválido: $s1"; exit 1; }
           echo "COMMIT=$s1" >> "$GITHUB_ENV"
+          # Só sai release de commit que já está na main (revisado por PR).
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${s1}" --jq .status)"
+          case "$status" in
+            identical|behind) ;;
+            *) echo "::error::o commit $s1 das builds não está na main ($status)"; exit 1 ;;
+          esac
           # A tag sai do Cargo.toml deste ref; precisa ser a mesma versão compilada nas builds,
           # senão o app instalado veria a release sempre como mais nova e reinstalaria sem parar.
           gh api -H 'Accept: application/vnd.github.raw' \
@@ -118,9 +140,16 @@ jobs:
           if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::a release $TAG já existe; use outro número de versão"; exit 1
           fi
+          # Uma tag que já exista com esse nome precisa apontar para o commit das builds.
+          if ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null)"; then
+            alvo="$(jq -r .object.sha <<<"$ref")"
+            if [ "$(jq -r .object.type <<<"$ref")" = tag ]; then
+              alvo="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${alvo}" --jq .object.sha)"
+            fi
+            [ "$alvo" = "$s1" ] || { echo "::error::a tag $TAG já existe e aponta para $alvo, não para $s1"; exit 1; }
+          fi
 
       - name: Baixar os arquivos das builds
-        if: inputs.etapa == 'preparar'
         shell: bash
         run: |
           set -euo pipefail
@@ -139,10 +168,24 @@ jobs:
           get "$RUN_LINUX_SUPORTE"  'jrtechdesk-deb-x86_64-suporte-*'        '*.deb'     jrtechdesk-suporte.deb
           get "$RUN_LINUX_COMPLETO" 'jrtechdesk-archlinux-x86_64-completo-*' '*.pkg.tar.zst' jrtechdesk-completo.pkg.tar.zst
           get "$RUN_LINUX_SUPORTE"  'jrtechdesk-archlinux-x86_64-suporte-*'  '*.pkg.tar.zst' jrtechdesk-suporte.pkg.tar.zst
-          (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          cd out
+          read -ra pacotes <<<"$PACOTES"
+          sha256sum -- "${pacotes[@]}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          # O que a etapa publicar vai exigir: este commit e exatamente estes arquivos.
+          arquivos='{}'
+          for nome in "${pacotes[@]}"; do
+            arquivos="$(jq --arg n "$nome" --arg h "$(sha256sum "$nome" | cut -d' ' -f1)" '. + {($n): $h}' <<<"$arquivos")"
+          done
+          jq -n --arg tag "$TAG" --arg versao "$VERSAO" --arg commit "$COMMIT" \
+            --arg wc "$RUN_WIN_COMPLETO" --arg ws "$RUN_WIN_SUPORTE" \
+            --arg lc "$RUN_LINUX_COMPLETO" --arg ls "$RUN_LINUX_SUPORTE" --argjson a "$arquivos" \
+            '{tag: $tag, versao: $versao, commit: $commit,
+              builds: {windows_completo: $wc, windows_suporte: $ws, linux_completo: $lc, linux_suporte: $ls},
+              arquivos: $a}' > PROVENIENCIA.json
+          cat PROVENIENCIA.json
 
       - name: Criar o rascunho da release
-        if: inputs.etapa == 'preparar'
         shell: bash
         run: |
           set -euo pipefail
@@ -152,76 +195,149 @@ jobs:
           | Arquivo | Para quem |
           |---|---|
           | \`JrTechDesk-suporte.exe\` | Cliente no Windows: abre direto, sem instalar |
-          | \`JrTechDesk-completo.exe\` | Técnico no Windows: instala e atualiza sozinho |
+          | \`JrTechDesk-completo.exe\` | Técnico no Windows: instala; avisa quando há versão nova e o técnico decide quando atualizar |
           | \`jrtechdesk-completo.deb\` / \`.pkg.tar.zst\` | Técnico no Linux (Debian/Ubuntu, Arch) |
           | \`jrtechdesk-suporte.deb\` / \`.pkg.tar.zst\` | Cliente no Linux |
 
+          \`PROVENIENCIA.json\` registra o commit, as builds e o SHA-256 de cada arquivo.
           Código-fonte (AGPL-3.0): este repositório, no commit acima.
           EOF
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
             --title "JrTechDesk ${VERSAO}" --notes-file notes.md out/*
-          echo "Rascunho criado. Assine os .exe se for o caso e rode a etapa 'publicar'." >> "$GITHUB_STEP_SUMMARY"
+          echo "Rascunho criado. Assine os .exe se for o caso e rode a etapa 'publicar' a partir da main." >> "$GITHUB_STEP_SUMMARY"
 
-      # ---------------------------------------------------------------- publicar
+  publicar:
+    if: inputs.etapa == 'publicar' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    # O segredo de assinatura deve ficar neste ambiente, com revisor obrigatório.
+    environment: release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSAO_JR: ${{ inputs.versao-jr }}
+    steps:
+      - name: Achar o rascunho e o commit aprovado
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSAO_JR" =~ ^[1-9][0-9]{0,5}$ ]] || { echo "::error::versao-jr precisa ser 1 ou mais"; exit 1; }
+          gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq ".[] | select(.draft and (.tag_name | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-jr${VERSAO_JR}\$\"))) | [.tag_name, .target_commitish] | @tsv" \
+            > rascunhos.tsv
+          [ "$(wc -l < rascunhos.tsv)" -eq 1 ] \
+            || { echo "::error::esperava 1 rascunho com versao-jr=$VERSAO_JR, achei $(wc -l < rascunhos.tsv)"; cat rascunhos.tsv; exit 1; }
+          IFS=$'\t' read -r tag alvo < rascunhos.tsv
+          mkdir -p prov
+          gh release download "$tag" -R "$GITHUB_REPOSITORY" -p PROVENIENCIA.json -D prov
+          commit="$(jq -er .commit prov/PROVENIENCIA.json)"
+          [ "$(jq -er .tag prov/PROVENIENCIA.json)" = "$tag" ] || { echo "::error::PROVENIENCIA.json é de outra tag"; exit 1; }
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit inválido no PROVENIENCIA.json"; exit 1; }
+          [ "$alvo" = "$commit" ] || { echo "::error::o rascunho aponta para $alvo, mas as builds são de $commit"; exit 1; }
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${commit}" --jq .status)"
+          case "$status" in
+            identical|behind) ;;
+            *) echo "::error::o commit $commit não está na main ($status)"; exit 1 ;;
+          esac
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSAO=${tag#v}" >> "$GITHUB_ENV"
+          echo "COMMIT=$commit" >> "$GITHUB_ENV"
+
+      - name: Checkout do commit das builds
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ env.COMMIT }}
+          path: src
+          persist-credentials: false
+
+      - name: Conferir a versão do commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(git -C src rev-parse HEAD)" = "$COMMIT" ] || { echo "::error::checkout não está em $COMMIT"; exit 1; }
+          base="$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p;T;q' src/Cargo.toml)"
+          [ "v${base}-jr${VERSAO_JR}" = "$TAG" ] || { echo "::error::o commit está na versão $base, não em $TAG"; exit 1; }
+
       - name: Install Python
-        if: inputs.etapa == 'publicar'
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        if: inputs.etapa == 'publicar'
-        run: 'python -m pip install --only-binary=:all: --require-hashes -r res/update/update_metadata_requirements.txt'
+        run: 'python -m pip install --only-binary=:all: --require-hashes -r src/res/update/update_metadata_requirements.txt'
 
       - name: Conferir a chave de assinatura
-        if: inputs.etapa == 'publicar'
         env:
           RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.JRTECH_UPDATE_ED25519_SEED }}
           RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ vars.JRTECH_UPDATE_ED25519_PUBLIC_KEY }}
-        run: python res/update/generate_update_metadata.py check-key
+        run: python src/res/update/generate_update_metadata.py check-key
 
-      - name: Baixar o rascunho
-        if: inputs.etapa == 'publicar'
+      - name: Baixar e conferir o rascunho
         shell: bash
         run: |
           set -euo pipefail
-          [ "$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" = "true" ] \
-            || { echo "::error::$TAG não existe ou já foi publicada"; exit 1; }
+          read -ra pacotes <<<"$PACOTES"
+          extras=(SHA256SUMS.txt PROVENIENCIA.json
+            jrtechdesk-update.json jrtechdesk-update.json.sig
+            jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig)
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | sort > nomes.txt
+          printf '%s\n' "${pacotes[@]}" "${extras[@]}" | sort > permitidos.txt
+          inesperados="$(comm -23 nomes.txt permitidos.txt)"
+          [ -z "$inesperados" ] || { echo "::error::arquivos inesperados no rascunho: $inesperados"; exit 1; }
           mkdir -p out
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D out \
-            -p 'JrTechDesk-*.exe' -p 'jrtechdesk-*.deb' -p 'jrtechdesk-*.pkg.tar.zst'
+          for nome in "${pacotes[@]}"; do
+            grep -qxF "$nome" nomes.txt || { echo "::error::falta $nome no rascunho"; exit 1; }
+            gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$nome" -D out
+            esperado="$(jq -er --arg n "$nome" '.arquivos[$n]' prov/PROVENIENCIA.json)"
+            obtido="$(sha256sum "out/$nome" | cut -d' ' -f1)"
+            [ "$obtido" = "$esperado" ] && continue
+            # Só um .exe pode mudar, e só se foi assinado com Authenticode válido.
+            [[ "$nome" == *.exe ]] || { echo "::error::$nome mudou depois do preparar ($obtido, esperado $esperado)"; exit 1; }
+            command -v osslsigncode >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y -qq osslsigncode; }
+            osslsigncode verify -in "out/$nome" \
+              || { echo "::error::$nome mudou depois do preparar e não tem assinatura Authenticode válida"; exit 1; }
+            echo "::notice::$nome substituído por versão com assinatura Authenticode válida ($obtido)"
+          done
+          for nome in jrtechdesk-update.json jrtechdesk-update.json.sig \
+                      jrtechdesk-suporte-update.json jrtechdesk-suporte-update.json.sig; do
+            if grep -qxF "$nome" nomes.txt; then
+              gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$nome" -D out
+            fi
+          done
           ls -la out
-          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' \
-              | grep -Eqx 'jrtechdesk(-suporte)?-update\.json'; then
-            echo "::error::$TAG já tem arquivo de atualização; use outro número de versão"; exit 1
-          fi
 
       - name: Assinar o arquivo de atualização
-        if: inputs.etapa == 'publicar'
         env:
           RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.JRTECH_UPDATE_ED25519_SEED }}
           RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ vars.JRTECH_UPDATE_ED25519_PUBLIC_KEY }}
         shell: bash
         run: |
           set -euo pipefail
+          gerador=src/res/update/generate_update_metadata.py
+          base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download"
           # Um arquivo por modo, com package_id próprio: o completo instalado só aceita o
-          # completo, e o suporte portátil só aceita o suporte.
+          # completo, e o suporte portátil só aceita o suporte. Numa nova tentativa, o que
+          # já foi assinado é conferido em vez de assinado de novo.
           assinar() { # package-id exe metadata
-            python res/update/generate_update_metadata.py sign \
-              --artifact windows x86_64 exe "./out/$2" \
-              --version "$VERSAO" --release-id "$TAG" \
-              --package-id "$1" \
-              --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download" \
-              --published-at "$PUBLISHED_AT" \
-              --metadata-out "./out/$3" \
-              --signature-out "./out/$3.sig"
-            python res/update/generate_update_metadata.py verify \
+            if [ -f "./out/$3" ] && [ -f "./out/$3.sig" ]; then
+              echo "$3 já existe no rascunho; conferindo"
+            elif [ -f "./out/$3" ] || [ -f "./out/$3.sig" ]; then
+              echo "::error::o rascunho tem só metade de $3 (json/sig); apague o que sobrou e rode de novo"; exit 1
+            else
+              python "$gerador" sign \
+                --artifact windows x86_64 exe "./out/$2" \
+                --version "$VERSAO" --release-id "$TAG" \
+                --package-id "$1" \
+                --release-base-url "$base_url" \
+                --published-at "$PUBLISHED_AT" \
+                --metadata-out "./out/$3" \
+                --signature-out "./out/$3.sig"
+            fi
+            python "$gerador" verify \
               --metadata "./out/$3" \
               --signature "./out/$3.sig" \
               --artifact "./out/$2" \
               --version "$VERSAO" --release-id "$TAG" \
               --package-id "$1" \
-              --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download"
+              --release-base-url "$base_url"
             cat "./out/$3"; echo
           }
           PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -229,15 +345,23 @@ jobs:
           assinar jrtechdesk-suporte JrTechDesk-suporte.exe jrtechdesk-suporte-update.json
 
       - name: Publicar
-        if: inputs.etapa == 'publicar'
         shell: bash
         run: |
           set -euo pipefail
+          read -ra pacotes <<<"$PACOTES"
           # Os .exe podem ter sido trocados pelos assinados: refaz a lista de SHA-256.
-          (cd out && sha256sum JrTechDesk-*.exe jrtechdesk-*.deb jrtechdesk-*.pkg.tar.zst > SHA256SUMS.txt)
+          (cd out && sha256sum -- "${pacotes[@]}" > SHA256SUMS.txt)
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber \
             out/jrtechdesk-update.json out/jrtechdesk-update.json.sig \
             out/jrtechdesk-suporte-update.json out/jrtechdesk-suporte-update.json.sig \
             out/SHA256SUMS.txt
+          # Se a tag já existir, ela precisa apontar para o commit das builds.
+          if ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null)"; then
+            alvo="$(jq -r .object.sha <<<"$ref")"
+            if [ "$(jq -r .object.type <<<"$ref")" = tag ]; then
+              alvo="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${alvo}" --jq .object.sha)"
+            fi
+            [ "$alvo" = "$COMMIT" ] || { echo "::error::a tag $TAG aponta para $alvo, não para $COMMIT"; exit 1; }
+          fi
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest
           echo "Publicada: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"

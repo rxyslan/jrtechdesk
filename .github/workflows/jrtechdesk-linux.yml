@@ -368,6 +368,8 @@ jobs:
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         run: |
           sed -i "s/x86_64/${{ matrix.job.arch }}/g" res/PKGBUILD
+          # A versao-jr vira o pkgrel: o pacman ordena jr4 < jr5 da mesma versão base.
+          sed -i "s/^pkgrel=.*/pkgrel=${{ inputs.versao-jr }}/" res/PKGBUILD
           if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
             sed -i "s/x86_64/aarch64/g" ./res/PKGBUILD
           fi

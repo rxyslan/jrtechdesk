@@ -27,8 +27,10 @@ post_upgrade() {
 	cp /usr/share/jrtechdesk/files/jrtechdesk.desktop /usr/share/applications/
 	cp /usr/share/jrtechdesk/files/jrtechdesk-link.desktop /usr/share/applications/
 	systemctl daemon-reload
-	systemctl enable jrtechdesk
-	systemctl start jrtechdesk
+	# Só volta a rodar se continuava habilitado: uma desativação do administrador vale.
+	if systemctl is-enabled --quiet jrtechdesk; then
+		systemctl start jrtechdesk
+	fi
 	update-desktop-database
 }
 

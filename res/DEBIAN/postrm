@@ -5,6 +5,7 @@ set -e
 case $1 in
     purge)
 		rm -rf /root/.config/jrtechdesk || true
+		rm -rf /var/lib/jrtechdesk || true
         ;;
 esac
 

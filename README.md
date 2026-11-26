@@ -1,3 +1,25 @@
+# JrTechDesk
+
+Fork white-label do [RustDesk](https://github.com/rustdesk/rustdesk) usado pela Jrtech para
+atendimento remoto, com servidores próprios (hbbs/hbbr) embutidos no programa.
+
+- **Baixar:** https://baixar.desbloqueiorepidclass.com.br (só a edição Suporte). Os pacotes
+  de todas as edições ficam nas [releases deste repositório](https://github.com/rxyslan/jrtechdesk/releases).
+- **Edições:** *Suporte* (para quem recebe atendimento: no Windows abre sem instalar; só recebe
+  conexões) e *Completo* (para os técnicos: instala, acessa e é acessado).
+- **Atualização:** o programa avisa quando há versão nova e o usuário decide quando atualizar.
+  No Windows, o pacote é conferido pelo manifesto assinado (`src/update_metadata.rs`).
+- **Builds e release:** `.github/workflows/jrtechdesk-windows.yml`, `jrtechdesk-linux.yml` e
+  `jrtechdesk-release.yml` (etapas *preparar* e *publicar*; ver o comentário no topo do arquivo).
+  A etapa *publicar* roda no ambiente `release` do GitHub: o segredo
+  `JRTECH_UPDATE_ED25519_SEED` deve ficar nesse ambiente, com revisor obrigatório e restrito à `main`.
+- **Site de download:** `site/` (ver [site/LEIA-ME.md](site/LEIA-ME.md)).
+- **Código-fonte:** AGPL-3.0, como o RustDesk.
+
+O texto abaixo é o README original do RustDesk (upstream).
+
+---
+
 <p align="center">
   <img src="res/logo-header.svg" alt="RustDesk - Your remote desktop"><br>
   <a href="#raw-steps-to-build">Build</a> •
