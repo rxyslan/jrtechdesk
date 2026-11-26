@@ -6,3 +6,11 @@ After=network-online.target
 [Service]
 Type=oneshot
 ExecStart=/opt/jrtechdesk-site/sincronizar.sh
+TimeoutStartSec=8min
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=/opt/jrtechdesk-site
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes

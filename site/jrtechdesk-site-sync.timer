@@ -3,8 +3,7 @@ Description=Atualiza o site de download do JrTechDesk a cada 10 minutos
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=10min
-Persistent=true
+OnUnitInactiveSec=10min
 
 [Install]
 WantedBy=timers.target

@@ -16,37 +16,80 @@ ARQUIVOS=(
   SHA256SUMS.txt
 )
 
-json=$(curl -fsSL --retry 3 -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/$REPO/releases/latest")
-tag=$(jq -r '.tag_name' <<<"$json")
-publicada=$(jq -r '.published_at' <<<"$json")
-[[ "$tag" =~ ^v[0-9A-Za-z.\-]+$ ]] || { echo "tag inesperada: $tag" >&2; exit 1; }
-
-destino="$BASE/releases/$tag"
-if [[ "$(readlink "$BASE/download" 2>/dev/null)" == "releases/$tag" ]]; then
+mkdir -p "$BASE/releases"
+exec 9>"$BASE/.sincronizar.lock"
+if ! flock -n 9; then
+  echo "Já há uma sincronização em andamento."
   exit 0
 fi
 
-tmp="$BASE/releases/.baixando-$tag"
-rm -rf "$tmp"
-mkdir -p "$tmp"
+# Recupera o espaço de uma execução interrompida antes de consultar o GitHub.
+rm -rf -- "$BASE"/releases/.baixando-* "$BASE/download.novo"
+tmp=
+trap 'if [[ -n "$tmp" ]]; then rm -rf -- "$tmp"; fi; rm -f -- "$BASE/download.novo"' EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+if ! json=$(curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 10 --max-time 30 \
+  -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/releases/latest"); then
+  echo "Falha ao consultar a release no GitHub. O timer tentará novamente." >&2
+  exit 1
+fi
+tag=$(jq -er '.tag_name' <<<"$json")
+publicada=$(jq -er '.published_at' <<<"$json")
+[[ "$tag" =~ ^v[0-9A-Za-z.\-]+$ ]] || { echo "tag inesperada: $tag" >&2; exit 1; }
+
+destino="$BASE/releases/$tag"
+atual=$(readlink "$BASE/download" 2>/dev/null || true)
+if [[ "$atual" == "releases/$tag" ]]; then
+  exit 0
+fi
+if [[ -e "$BASE/download" && ! -L "$BASE/download" ]]; then
+  echo "O caminho $BASE/download precisa ser um link simbólico." >&2
+  exit 1
+fi
+
+declare -A urls hashes tamanhos
+total=0
+for nome in "${ARQUIVOS[@]}"; do
+  if ! dados=$(jq -er --arg n "$nome" '
+    [.assets[] | select(.name == $n)] | select(length == 1) | .[0]
+    | select((.browser_download_url // "") | startswith("https://"))
+    | select((.digest // "") | test("^sha256:[0-9a-f]{64}$"))
+    | select(.size | type == "number" and . > 0 and . == floor)
+    | [.browser_download_url, .digest, .size] | @tsv
+  ' <<<"$json"); then
+    echo "$tag: dados incompletos ou inválidos para $nome na release" >&2
+    exit 1
+  fi
+  IFS=$'\t' read -r url digest tamanho <<<"$dados"
+  urls[$nome]=$url
+  hashes[$nome]=$digest
+  tamanhos[$nome]=$tamanho
+  total=$((total + tamanho))
+done
+
+disponivel=$(df -B1 --output=avail "$BASE/releases" | tail -n 1)
+if (( disponivel < total + 1048576 )); then
+  echo "$tag: espaço insuficiente para baixar a release. A versão publicada foi mantida." >&2
+  exit 1
+fi
+
+tmp=$(mktemp -d "$BASE/releases/.baixando-$tag.XXXXXX")
 arquivos_json="{}"
 for nome in "${ARQUIVOS[@]}"; do
-  url=$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .browser_download_url' <<<"$json")
-  digest=$(jq -r --arg n "$nome" '.assets[] | select(.name == $n) | .digest' <<<"$json")
-  if [[ -z "$url" || "$digest" != sha256:* ]]; then
-    echo "$tag: falta $nome ou o hash dele na release" >&2
-    rm -rf "$tmp"
-    exit 1
-  fi
-  curl -fsSL --retry 3 -o "$tmp/$nome" "$url"
-  obtido=$(sha256sum "$tmp/$nome" | cut -d' ' -f1)
-  if [[ "sha256:$obtido" != "$digest" ]]; then
-    echo "$tag: SHA-256 de $nome não confere ($obtido, esperado $digest)" >&2
-    rm -rf "$tmp"
-    exit 1
-  fi
+  curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 10 --max-time 120 \
+    --retry 2 --retry-max-time 120 --max-filesize "${tamanhos[$nome]}" -o "$tmp/$nome" "${urls[$nome]}"
   tamanho=$(stat -c %s "$tmp/$nome")
+  if [[ "$tamanho" != "${tamanhos[$nome]}" ]]; then
+    echo "$tag: tamanho de $nome não confere" >&2
+    exit 1
+  fi
+  obtido=$(sha256sum "$tmp/$nome" | cut -d' ' -f1)
+  if [[ "sha256:$obtido" != "${hashes[$nome]}" ]]; then
+    echo "$tag: SHA-256 de $nome não confere ($obtido, esperado ${hashes[$nome]})" >&2
+    exit 1
+  fi
   arquivos_json=$(jq --arg n "$nome" --arg h "$obtido" --argjson t "$tamanho" \
     '. + {($n): {sha256: $h, tamanho: $t}}' <<<"$arquivos_json")
 done
@@ -54,13 +97,19 @@ done
 jq -n --arg v "${tag#v}" --arg p "$publicada" --argjson a "$arquivos_json" \
   '{versao: $v, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
 chmod -R a+rX "$tmp"
-rm -rf "$destino"
-mv "$tmp" "$destino"
+ln -sT "releases/$tag" "$BASE/download.novo"
+rm -rf -- "$destino"
+mv -T "$tmp" "$destino"
+tmp=
 
 # Troca atômica do link que o site serve.
-ln -sfn "releases/$tag" "$BASE/download.novo"
 mv -T "$BASE/download.novo" "$BASE/download"
 echo "site de download agora em $tag"
 
-# Mantém só a versão atual e a anterior.
-ls -1dt "$BASE"/releases/v* | tail -n +3 | xargs -r rm -rf
+# Guarda a versão que estava publicada, inclusive quando a nova tag é mais antiga.
+for pasta in "$BASE"/releases/v*; do
+  nome=${pasta##*/}
+  if [[ -d "$pasta" && "$nome" =~ ^v[0-9A-Za-z.\-]+$ && "$nome" != "$tag" && "releases/$nome" != "$atual" ]]; then
+    rm -rf -- "$pasta"
+  fi
+done

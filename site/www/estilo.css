@@ -6,7 +6,6 @@
   --linha: #dfe5e2;
   --verde: #12a150;
   --verde-escuro: #0d7a3c;
-  --verde-claro: #e5f5ec;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,7 +16,6 @@
     --linha: #2c3531;
     --verde: #2fbf6c;
     --verde-escuro: #25a85c;
-    --verde-claro: #183326;
   }
 }
 * { box-sizing: border-box; }
@@ -29,6 +27,7 @@ body {
   font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 a { color: var(--verde-escuro); }
+a:focus-visible { outline: 3px solid var(--texto); outline-offset: 3px; }
 @media (prefers-color-scheme: dark) { a { color: var(--verde); } }
 code {
   font: 0.88em ui-monospace, Consolas, monospace;
@@ -64,35 +63,29 @@ h2 { font-size: 1.35rem; margin: 0 0 8px; }
 .cliente .lead { margin-left: auto; margin-right: auto; }
 .botao {
   display: inline-flex; flex-direction: column; align-items: center;
-  background: var(--verde); color: #fff; text-decoration: none;
+  background: #08753a; color: #fff; text-decoration: none;
   padding: 16px 36px; border-radius: 12px;
   box-shadow: 0 6px 18px rgb(18 161 80 / 25%);
-  transition: background .15s, transform .15s;
   max-width: 100%;
 }
-.botao:hover { background: var(--verde-escuro); transform: translateY(-1px); }
-.botao:focus-visible { outline: 3px solid var(--texto); outline-offset: 3px; }
+.botao:hover { background: #065d2e; }
 .botao-titulo { font-size: 1.2rem; font-weight: 700; }
-.botao-sub { font-size: 0.9rem; opacity: .9; }
+.botao-sub { font-size: 0.9rem; }
 .versao { color: var(--suave); font-size: 0.88rem; margin: 10px 0 0; }
 
 .passos {
-  list-style: none; padding: 0; margin: 32px auto 0; max-width: 640px;
+  padding-left: 1.5em; margin: 32px auto 0; max-width: 640px;
   text-align: left; display: grid; gap: 14px;
 }
-.passos li { display: flex; gap: 14px; align-items: flex-start; }
-.passos .n {
-  flex: none; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--verde-claro); color: var(--verde-escuro);
-  display: grid; place-items: center; font-weight: 700;
-}
-@media (prefers-color-scheme: dark) { .passos .n { color: var(--verde); } }
+.passos li::marker { font-weight: 700; }
 
 .tabela { overflow-x: auto; margin: 18px 0; }
-table { border-collapse: collapse; width: 100%; min-width: 520px; }
+table { border-collapse: collapse; width: 100%; }
+caption { color: var(--suave); font-size: 0.9rem; text-align: left; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linha); }
 th { font-size: 0.85rem; color: var(--suave); font-weight: 600; }
-td a { white-space: nowrap; }
+tbody th { color: var(--texto); }
+td a { display: inline-block; padding: 4px 0; }
 .notas { color: var(--suave); padding-left: 20px; margin: 0; }
 .notas li + li { margin-top: 6px; }
 
@@ -105,10 +98,5 @@ td a { white-space: nowrap; }
   section { padding: 24px 18px; border-radius: 12px; }
   .empresa { display: none; }
   .botao { width: 100%; padding: 16px; }
-  table { min-width: 0; }
-  thead { display: none; }
-  tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--linha); }
-  td { display: block; border: 0; padding: 3px 0; }
-  td:first-child { font-weight: 600; }
-  td[data-rotulo]::before { content: attr(data-rotulo) ": "; color: var(--suave); }
+  th, td { padding: 8px 4px; }
 }
