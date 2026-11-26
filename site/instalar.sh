@@ -49,7 +49,8 @@ hash_index=$(sha256sum "$BASE/$www_nova/index.html" | cut -d' ' -f1)
 site_id=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
 [[ ${#site_id} -eq 32 ]]
 
-docker run --rm -e JRTECH_SITE_ID=validacao -v "$novo/Caddyfile":/etc/caddy/Caddyfile:ro \
+# --network host: o Docker em LXC sem privilégio não cria rede própria para contêiner.
+docker run --rm --network host -e JRTECH_SITE_ID=validacao -v "$novo/Caddyfile":/etc/caddy/Caddyfile:ro \
   "$CADDY_IMAGEM" caddy validate --config /etc/caddy/Caddyfile
 
 ln -sT "$www_nova" "$BASE/www.novo"
