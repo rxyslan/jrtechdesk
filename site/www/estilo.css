@@ -250,7 +250,8 @@ kbd {
 .verificacao p { margin-top: var(--e-3); color: var(--suave); max-width: var(--medida); }
 
 .nota { margin-top: var(--e-7); color: var(--suave); font-size: 0.94rem; max-width: var(--medida); }
-.aviso-copia {
+/* Só para leitor de tela: o aviso de cópia e a pausa entre título e resumo. */
+.aviso-copia, .sr {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
@@ -272,11 +273,6 @@ kbd {
 .topico summary:hover .topico-seta, .topico summary:hover .topico-titulo { color: var(--link); }
 .topico p { padding-bottom: var(--e-5); color: var(--suave); max-width: var(--medida); }
 .topico-aberto p { padding: var(--e-4) 0; }
-/* Texto só para leitor de tela (pausa entre o título e o resumo). */
-.sr {
-  position: absolute; width: 1px; height: 1px; overflow: hidden;
-  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
-}
 /* Impresso, cada tópico sai com o texto completo. */
 @media print {
   .topico::details-content { content-visibility: visible; }
