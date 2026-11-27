@@ -23,7 +23,7 @@
   --t-corpo: 1.0625rem;
   --t-bloco: 1.375rem;
   --t-secao: clamp(1.75rem, 3.2vw, 2.25rem);
-  --t-display: clamp(2.1rem, 4.6vw, 3.3rem);
+  --t-display: clamp(2.2rem, 4.6vw, 3.3rem);
   --medida: 62ch;
   /* Escala de espaço (base 4). */
   --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px; --e-7: 48px; --e-8: 64px;
@@ -271,6 +271,17 @@ kbd {
 .topico[open] .topico-seta { transform: rotate(180deg); }
 .topico summary:hover .topico-seta, .topico summary:hover .topico-titulo { color: var(--link); }
 .topico p { padding-bottom: var(--e-5); color: var(--suave); max-width: var(--medida); }
+.topico-aberto p { padding: var(--e-4) 0; }
+/* Texto só para leitor de tela (pausa entre o título e o resumo). */
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+/* Impresso, cada tópico sai com o texto completo. */
+@media print {
+  .topico::details-content { content-visibility: visible; }
+  .topico-seta { display: none; }
+}
 
 /* Rodapé */
 .rodape { border-top: 1px solid var(--linha); color: var(--suave); font-size: 0.88rem; }
