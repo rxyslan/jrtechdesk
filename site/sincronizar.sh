@@ -1,20 +1,69 @@
 #!/usr/bin/env bash
 # Copia os instaladores da release mais recente do GitHub para o site de download.
 # Roda a cada 10 min (jrtechdesk-site-sync.timer). Só troca a versão publicada depois
-# que todos os arquivos baixaram e conferiram com o SHA-256 informado pelo GitHub.
+# que todos os arquivos baixaram e conferiram com o SHA-256 informado pelo GitHub e o
+# .exe conferiu também com o manifesto assinado pela chave de atualização da Jrtech.
+# O domínio público distribui apenas a edição Suporte.
 set -euo pipefail
 
 REPO="rxyslan/jrtechdesk"
 BASE="${JRTECH_SITE_BASE:-/opt/jrtechdesk-site}"
-ARQUIVOS=(
+PACOTES=(
   JrTechDesk-suporte.exe
-  JrTechDesk-completo.exe
   jrtechdesk-suporte.deb
-  jrtechdesk-completo.deb
   jrtechdesk-suporte.pkg.tar.zst
-  jrtechdesk-completo.pkg.tar.zst
-  SHA256SUMS.txt
 )
+MANIFESTO=jrtechdesk-suporte-update.json
+# Baixados da release; o SHA256SUMS.txt publicado é gerado aqui, só com os PACOTES.
+ARQUIVOS=("${PACOTES[@]}" "$MANIFESTO" "$MANIFESTO.sig")
+PUBLICADOS=("${ARQUIVOS[@]}" SHA256SUMS.txt)
+# Da época em que o site espelhava também o Completo: saem das pastas publicadas.
+LEGADOS=(
+  JrTechDesk-completo.exe
+  jrtechdesk-completo.deb
+  jrtechdesk-completo.pkg.tar.zst
+  jrtechdesk-update.json
+  jrtechdesk-update.json.sig
+)
+
+remover_legados() {
+  local pasta nome
+  for pasta in "$BASE"/releases/v*; do
+    [[ -d "$pasta" && ! -L "$pasta" ]] || continue
+    for nome in "${LEGADOS[@]}"; do
+      if [[ -f "$pasta/$nome" && ! -L "$pasta/$nome" ]]; then
+        rm -f -- "$pasta/$nome"
+        echo "${pasta##*/}: $nome (Completo) removido"
+      fi
+    done
+  done
+}
+
+# Chave pública de atualização (a mesma de src/update_metadata.rs, em DER/SPKI).
+CHAVE_ATUALIZACAO="MCowBQYDK2VwAyEAxFG1sLnhRUmed9Nkp+TPBUVo+dAF9vSII0V6/0s5S90="
+CONTEXTO_ASSINATURA=$'RustDesk update metadata v1\n'
+
+# O manifesto do Suporte é assinado pela chave da Jrtech e lista o .exe desta tag
+# com o mesmo tamanho e SHA-256 do arquivo baixado?
+manifesto_confere() {
+  local pasta=$1 chave
+  chave=$(mktemp)
+  printf -- '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----\n' "$CHAVE_ATUALIZACAO" >"$chave"
+  if ! { printf '%s' "$CONTEXTO_ASSINATURA"; cat "$pasta/$MANIFESTO"; } >"$pasta/.assinado" \
+    || ! jq -er '.signature' "$pasta/$MANIFESTO.sig" | base64 -d >"$pasta/.assinatura" 2>/dev/null \
+    || ! openssl pkeyutl -verify -pubin -inkey "$chave" -rawin -in "$pasta/.assinado" \
+      -sigfile "$pasta/.assinatura" >/dev/null 2>&1; then
+    rm -f -- "$chave" "$pasta/.assinado" "$pasta/.assinatura"
+    return 1
+  fi
+  rm -f -- "$chave" "$pasta/.assinado" "$pasta/.assinatura"
+  jq -e --arg t "$tag" --arg h "$(sha256sum "$pasta/JrTechDesk-suporte.exe" | cut -d' ' -f1)" \
+    --argjson s "$(stat -c %s "$pasta/JrTechDesk-suporte.exe")" '
+    .package_id == "jrtechdesk-suporte" and .release_id == $t
+    and ([.artifacts[] | select(.file_name == "JrTechDesk-suporte.exe"
+      and .sha256 == $h and .size == $s)] | length == 1)
+  ' "$pasta/$MANIFESTO" >/dev/null
+}
 
 # Espaço que precisa sobrar no disco depois do download (o CT também roda hbbs/hbbr).
 RESERVA_MB="${JRTECH_SITE_RESERVA_MB:-1024}"
@@ -25,13 +74,17 @@ publicacao_completa() {
   local pasta=$1 nome esperado hash
   [[ -f "$pasta/versao.json" ]] || return 1
   jq -e --arg t "$tag" '.tag == $t' "$pasta/versao.json" >/dev/null 2>&1 || return 1
-  for nome in "${ARQUIVOS[@]}"; do
+  for nome in "${PUBLICADOS[@]}"; do
     esperado=$(jq -er --arg n "$nome" '.arquivos[$n].tamanho' "$pasta/versao.json" 2>/dev/null) || return 1
     [[ -f "$pasta/$nome" && ! -L "$pasta/$nome" && "$(stat -c %s "$pasta/$nome")" == "$esperado" ]] || return 1
     hash=$(jq -er --arg n "$nome" '.arquivos[$n].sha256' "$pasta/versao.json" 2>/dev/null) || return 1
     [[ "$(nice -n 19 sha256sum "$pasta/$nome" | cut -d' ' -f1)" == "$hash" ]] || return 1
   done
 }
+
+for comando in curl jq openssl sha256sum; do
+  command -v "$comando" >/dev/null || { echo "falta o comando $comando" >&2; exit 1; }
+done
 
 mkdir -p "$BASE/releases"
 exec 9>"$BASE/.sincronizar.lock"
@@ -59,10 +112,11 @@ publicada=$(jq -er '.published_at' <<<"$json")
 destino="$BASE/releases/$tag"
 atual=$(readlink "$BASE/download" 2>/dev/null || true)
 if [[ "$atual" == "releases/$tag" ]] && publicacao_completa "$destino"; then
+  remover_legados
   exit 0
 fi
 if [[ "$atual" == "releases/$tag" ]]; then
-  for nome in "${ARQUIVOS[@]}" versao.json; do
+  for nome in "${PUBLICADOS[@]}" versao.json; do
     if [[ -d "$destino/$nome" && ! -L "$destino/$nome" ]]; then
       echo "$tag: $destino/$nome é um diretório; corrija à mão (nada foi baixado)." >&2
       exit 1
@@ -120,13 +174,22 @@ for nome in "${ARQUIVOS[@]}"; do
     '. + {($n): {sha256: $h, tamanho: $t}}' <<<"$arquivos_json")
 done
 
+if ! manifesto_confere "$tmp"; then
+  echo "$tag: o JrTechDesk-suporte.exe não confere com o manifesto assinado. A versão publicada foi mantida." >&2
+  exit 1
+fi
+(cd "$tmp" && sha256sum -- "${PACOTES[@]}") >"$tmp/SHA256SUMS.txt"
+arquivos_json=$(jq --arg h "$(sha256sum "$tmp/SHA256SUMS.txt" | cut -d' ' -f1)" \
+  --argjson t "$(stat -c %s "$tmp/SHA256SUMS.txt")" \
+  '. + {"SHA256SUMS.txt": {sha256: $h, tamanho: $t}}' <<<"$arquivos_json")
+
 if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
   # Reparo da versão já publicada: troca só os arquivos com problema, um a um (mv é
   # atômico), sem apagar a pasta que o site está servindo nem mexer na versão anterior.
   jq -n --arg v "${tag#v}" --arg p "$publicada" --argjson a "$arquivos_json" \
     --arg t "$tag" '{versao: $v, tag: $t, publicada: $p, arquivos: $a}' >"$tmp/versao.json"
   chmod -R a+rX "$tmp"
-  for nome in "${ARQUIVOS[@]}" versao.json; do
+  for nome in "${PUBLICADOS[@]}" versao.json; do
     if [[ -L "$destino/$nome" ]] || ! cmp -s "$tmp/$nome" "$destino/$nome"; then
       mv -fT "$tmp/$nome" "$destino/$nome"
       echo "$tag: $nome reparado"
@@ -136,6 +199,7 @@ if [[ "$atual" == "releases/$tag" && -d "$destino" ]]; then
     echo "$tag: o reparo não deixou a versão publicada íntegra" >&2
     exit 1
   fi
+  remover_legados
   exit 0
 fi
 
@@ -150,6 +214,7 @@ tmp=
 # Troca atômica do link que o site serve.
 mv -T "$BASE/download.novo" "$BASE/download"
 echo "site de download agora em $tag"
+remover_legados
 
 # Guarda a versão que estava publicada, inclusive quando a nova tag é mais antiga.
 for pasta in "$BASE"/releases/v*; do

@@ -11,7 +11,8 @@ set -Eeuo pipefail
 cd "$(dirname "$0")"
 
 BASE=${JRTECH_SITE_BASE:-/opt/jrtechdesk-site}
-CADDY_IMAGEM="caddy:2.10.0"
+# Tag e digest do índice multiarquitetura: a mesma tag não pode trocar de conteúdo.
+CADDY_IMAGEM="caddy:2.10.0@sha256:133b5eb7ef9d42e34756ba206b06d84f4e3eb308044e268e182c2747083f09de"
 CONTAINER=jrtechdesk-site
 UNITS=${JRTECH_SITE_UNITS:-/etc/systemd/system}
 HOST_PUBLICO=baixar.desbloqueiorepidclass.com.br
@@ -21,10 +22,13 @@ mkdir -p "$BASE/releases"
 exec 9>"$BASE/.instalar.lock"
 flock -n 9 || { echo "Já há uma instalação em andamento." >&2; exit 1; }
 
-command -v jq >/dev/null && command -v curl >/dev/null || {
+command -v jq >/dev/null && command -v curl >/dev/null && command -v openssl >/dev/null || {
   apt-get update -qq
-  apt-get install -y -qq jq curl
+  apt-get install -y -qq jq curl openssl
 }
+# O sincronizador confere a assinatura ed25519 com "openssl pkeyutl -rawin" (OpenSSL 3+).
+[[ "$(openssl version | awk '{print $2}')" =~ ^([3-9]|[1-9][0-9])\. ]] \
+  || { echo "O sincronizador precisa do OpenSSL 3 ou mais novo ($(openssl version))." >&2; exit 1; }
 
 id_nova=$(date +%Y%m%d%H%M%S)-$$
 www_nova="www-$id_nova"
@@ -37,9 +41,10 @@ trap 'if [[ -z "$manter_novo" ]]; then rm -rf -- "$novo"; fi
 # --- Preparação: nada do que está no ar muda aqui. ---
 limpar_preparo=1
 rm -f -- "$BASE/www.novo"
-mkdir -p "$BASE/$www_nova/img"
+mkdir -p "$BASE/$www_nova/img" "$BASE/$www_nova/fontes"
 install -m 0644 www/img/*.png "$BASE/$www_nova/img/"
-install -m 0644 www/estilo.css www/versao.js www/index.html "$BASE/$www_nova/"
+install -m 0644 www/fontes/inter-latin.woff2 www/fontes/OFL.txt "$BASE/$www_nova/fontes/"
+install -m 0644 www/estilo.css www/versao.js www/copiar.js www/index.html "$BASE/$www_nova/"
 install -m 0644 Caddyfile "$novo/"
 install -m 0755 sincronizar.sh "$novo/"
 install -m 0644 jrtechdesk-site-sync.service jrtechdesk-site-sync.timer "$novo/"
