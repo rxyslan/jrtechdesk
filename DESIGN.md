@@ -96,7 +96,7 @@ components:
 
 O site de download é escuro e segue as convenções das páginas de suporte remoto. A direção registrada no brief usa o RustDesk como régua de acabamento, com marca, arte e texto próprios. A interface em português do Brasil favorece quem está ao telefone com o técnico. O endereço oficial aparece antes das ações, o download para Windows recebe o maior destaque e três passos numerados orientam o atendimento. A seção Downloads reúne os pacotes por sistema e a conferência dos arquivos. A seção Privacidade mantém os resumos à vista.
 
-Este documento registra a implementação local de [`site/www/index.html`](site/www/index.html) e [`site/www/estilo.css`](site/www/estilo.css). [`PRODUCT.md`](PRODUCT.md) registra as decisões de produto e o [brief da página](.impeccable/surfaces/site-www-index-html.md) registra a direção visual. Os tokens de componentes descrevem o estado base. As variações por largura e por interação estão no texto.
+Este documento registra a implementação de [`site/www/index.html`](site/www/index.html) e [`site/www/estilo.css`](site/www/estilo.css). [`PRODUCT.md`](PRODUCT.md) registra as decisões de produto. Os tokens de componentes descrevem o estado base. As variações por largura e por interação estão no texto.
 
 ## Colors
 
