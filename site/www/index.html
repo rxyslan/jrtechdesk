@@ -45,7 +45,7 @@
       </div>
 
       <div class="como">
-        <h2>Como funciona</h2>
+        <h2>Como funciona no Windows</h2>
         <ol class="passos" role="list">
           <li><div><strong>Baixe.</strong> Clique em Baixar para Windows.</div></li>
           <li><div><strong>Abra o arquivo JrTechDesk-suporte.exe.</strong> Ele aparece na lista de downloads do navegador (<kbd>Ctrl</kbd> + <kbd>J</kbd>). Se aparecer um aviso do navegador ou do Windows, pare e avise o técnico.</div></li>
@@ -73,12 +73,12 @@
   <section class="dar" id="dar" aria-labelledby="titulo-dar">
     <div class="largura">
       <h2 id="titulo-dar" class="titulo-secao">Downloads</h2>
-      <p class="intro">Todos os pacotes são do JrTechDesk Suporte, o programa que permite ao técnico da Jrtech acessar este computador. São para computadores de 64 bits (x86-64). No Linux, abra o terminal na pasta onde salvou o arquivo (normalmente Downloads) antes de rodar o comando.</p>
+      <p class="intro">Todos os pacotes são do JrTechDesk Suporte, o programa que permite ao técnico da Jrtech acessar este computador. São para computadores de 64 bits (x86-64). No Linux, abra o terminal na pasta onde salvou o arquivo (normalmente Downloads) antes de rodar o comando. No Linux, o pacote instala um serviço que continua aceitando conexões depois de fechar a janela; veja <a href="#privacidade-linux">como desativá-lo</a>.</p>
 
       <ul class="downloads" role="list">
         <li class="download" id="windows">
           <div class="download-sistema">
-            <h3>Windows</h3>
+            <h3 id="p-win">Windows</h3>
             <p class="requisito">Windows 10 ou 11, 64 bits. Abre direto, sem instalar.</p>
           </div>
           <div class="download-acao">
@@ -90,7 +90,7 @@
         </li>
         <li class="download" id="linux">
           <div class="download-sistema">
-            <h3>Ubuntu e Debian</h3>
+            <h3 id="p-deb">Ubuntu e Debian</h3>
             <p class="requisito">Pacote .deb para 64 bits (amd64).</p>
           </div>
           <div class="download-acao">
@@ -103,7 +103,7 @@
         </li>
         <li class="download" id="arch">
           <div class="download-sistema">
-            <h3>Arch Linux</h3>
+            <h3 id="p-arch">Arch Linux</h3>
             <p class="requisito">Pacote .pkg.tar.zst para 64 bits; Arch atualizado.</p>
           </div>
           <div class="download-acao">
@@ -152,7 +152,7 @@
       </li>
       <li>
         <details class="topico">
-          <summary><span class="topico-titulo">O que o técnico pode fazer</span><span class="sr">: </span> <span class="topico-resumo">Controle total enquanto conectado, inclusive gravar a sessão, usar a câmera, acessar a sua rede e escurecer a sua tela.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <summary><span class="topico-titulo">O que o técnico pode fazer</span><span class="sr">: </span> <span class="topico-resumo">Controle total enquanto conectado: pode copiar e apagar arquivos, usar a câmera, acessar a sua rede, gravar a sessão e escurecer a sua tela; algumas funções dependem do sistema.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
           <p>O que o técnico pode fazer enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio do computador (e, conforme a configuração, do microfone) e usar a câmera; abrir um terminal; usar a conexão do seu computador para acessar serviços que ele alcança, na sua rede (roteador, impressoras, servidores) ou na internet; imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema. Ao conectar, o técnico também recebe o nome do computador, o usuário conectado, o sistema e a versão do programa.</p>
         </details>
       </li>
@@ -164,8 +164,8 @@
       </li>
       <li>
         <details class="topico">
-          <summary><span class="topico-titulo">No Linux</span><span class="sr">: </span> <span class="topico-resumo">Instala um serviço que roda como administrador, segue ativo com a janela fechada e responde na rede local com ID, usuário e MAC.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
-          <p>No Linux, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga, inclusive na tela de login. Fechar a janela mantém o computador disponível para novas conexões, e a senha temporária vale até o programa trocá-la. O programa instalado também responde a buscas de outros computadores da rede local com o ID, o nome do computador, o usuário, o sistema e o endereço MAC. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</p>
+          <summary><span class="topico-titulo">No Linux</span><span class="sr">: </span> <span class="topico-resumo">Instala um serviço que roda como administrador, segue ativo com a janela fechada, volta a iniciar com o computador e é reativado ao instalar uma versão nova; responde na rede local com ID, usuário e MAC.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p id="privacidade-linux">No Linux, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga, inclusive na tela de login. Fechar a janela mantém o computador disponível para novas conexões, e a senha temporária vale até o programa trocá-la. O programa instalado também responde a buscas de outros computadores da rede local com o ID, o nome do computador, o usuário, o sistema e o endereço MAC. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</p>
         </details>
       </li>
       <li>
@@ -176,7 +176,7 @@
       </li>
       <li>
         <details class="topico">
-          <summary><span class="topico-titulo">Serviços de terceiros</span><span class="sr">: </span> <span class="topico-resumo">O GitHub (EUA) e servidores públicos de rede, alguns fora do Brasil, recebem o seu IP.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <summary><span class="topico-titulo">Serviços de terceiros</span><span class="sr">: </span> <span class="topico-resumo">O GitHub (EUA) recebe o seu IP e a versão instalada; servidores públicos de rede, inclusive fora do Brasil, também podem receber o seu IP.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
           <p>Serviços de terceiros: o programa consulta o GitHub (empresa dos Estados Unidos) para saber se há versão nova, informando a versão instalada, e pode consultar servidores públicos de rede (Google, Cloudflare, Antisip e Nextcloud, que podem ficar fora do Brasil) para tentar uma conexão direta. Esses serviços recebem o endereço IP.</p>
         </details>
       </li>
