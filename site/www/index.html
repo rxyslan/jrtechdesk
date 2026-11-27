@@ -22,7 +22,7 @@
     </a>
     <nav class="navegacao" aria-label="Seções">
       <a href="#receber">Receber suporte</a>
-      <a href="#dar">Outros downloads</a>
+      <a href="#dar">Downloads</a>
       <a href="#privacidade">Privacidade</a>
     </nav>
   </div>
@@ -32,7 +32,6 @@
   <section class="hero" id="receber" aria-labelledby="titulo-receber">
     <div class="largura hero-grade">
       <div class="hero-texto">
-        <p class="sobretitulo">Receber suporte</p>
         <h1 id="titulo-receber">Atendimento remoto da Jrtech no seu computador</h1>
         <p class="lead">Baixe o JrTechDesk Suporte e passe ao técnico o ID e a senha que aparecem na tela. O programa abre direto, sem instalar.</p>
 
@@ -41,7 +40,7 @@
           <span class="botao-sub">x64 · .exe · Windows 10 e 11</span>
         </a>
         <p class="meta"><span data-versao hidden></span><span data-tamanho="JrTechDesk-suporte.exe" hidden></span><span data-sha256="JrTechDesk-suporte.exe" hidden></span></p>
-        <p class="outros">Outros downloads: <a href="#windows">Windows</a> <span aria-hidden="true">|</span> <a href="#linux">Linux</a></p>
+        <p class="outros">Também para Linux: <a href="#linux">Ubuntu e Debian</a> <span aria-hidden="true">|</span> <a href="#arch">Arch</a></p>
         <p class="so-celular"><strong>Está no celular?</strong> Este programa é para computador. No computador, abra o navegador e digite <span class="endereco">baixar.<wbr>desbloqueiorepidclass.<wbr>com.<wbr>br</span></p>
       </div>
 
@@ -73,52 +72,49 @@
 
   <section class="dar" id="dar" aria-labelledby="titulo-dar">
     <div class="largura">
-      <p class="sobretitulo">Downloads</p>
-      <h2 id="titulo-dar" class="titulo-secao">JrTechDesk Suporte</h2>
-      <p class="intro">O JrTechDesk Suporte recebe conexões para atendimento remoto. Todos os pacotes são para 64 bits (x86-64). No Linux, abra o terminal na pasta onde salvou os arquivos (normalmente Downloads) antes de rodar os comandos.</p>
+      <h2 id="titulo-dar" class="titulo-secao">Downloads</h2>
+      <p class="intro">Todos os pacotes são do JrTechDesk Suporte, para computadores de 64 bits (x86-64). No Linux, abra o terminal na pasta onde salvou o arquivo (normalmente Downloads) antes de rodar o comando.</p>
 
-      <div class="plataformas">
-        <article class="plataforma" id="windows" aria-labelledby="p-win">
-          <h3 id="p-win">Windows</h3>
-          <p class="requisito">Windows 10 ou 11, 64 bits</p>
-          <ul class="pacotes">
-            <li>
-              <a class="pacote" href="/download/JrTechDesk-suporte.exe" data-arquivo="JrTechDesk-suporte.exe" download>
-                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
-                <span class="pacote-arquivo">JrTechDesk-suporte.exe<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
-              </a>
-            </li>
-          </ul>
-        </article>
-
-        <article class="plataforma" id="linux" aria-labelledby="p-deb">
-          <h3 id="p-deb">Ubuntu e Debian</h3>
-          <p class="requisito">Pacote .deb para 64 bits (amd64)</p>
-          <ul class="pacotes">
-            <li>
-              <a class="pacote" href="/download/jrtechdesk-suporte.deb" data-arquivo="jrtechdesk-suporte.deb" download>
-                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
-                <span class="pacote-arquivo">jrtechdesk-suporte.deb<span data-tamanho="jrtechdesk-suporte.deb" hidden></span></span>
-              </a>
-              <pre class="comando" data-copiar><code>sudo apt install ./jrtechdesk-suporte.deb</code></pre>
-            </li>
-          </ul>
-        </article>
-
-        <article class="plataforma" aria-labelledby="p-arch">
-          <h3 id="p-arch">Arch Linux</h3>
-          <p class="requisito">Pacote .pkg.tar.zst para 64 bits; Arch atualizado</p>
-          <ul class="pacotes">
-            <li>
-              <a class="pacote" href="/download/jrtechdesk-suporte.pkg.tar.zst" data-arquivo="jrtechdesk-suporte.pkg.tar.zst" download>
-                <span class="pacote-nome">Suporte <span class="pacote-desc">· recebe atendimento</span></span>
-                <span class="pacote-arquivo">jrtechdesk-suporte.pkg.tar.zst<span data-tamanho="jrtechdesk-suporte.pkg.tar.zst" hidden></span></span>
-              </a>
-              <pre class="comando" data-copiar><code>sudo pacman -U ./jrtechdesk-suporte.pkg.tar.zst</code></pre>
-            </li>
-          </ul>
-        </article>
-      </div>
+      <ul class="downloads" role="list">
+        <li class="download" id="windows">
+          <div class="download-sistema">
+            <h3>Windows</h3>
+            <p class="requisito">Windows 10 ou 11, 64 bits. Abre direto, sem instalar.</p>
+          </div>
+          <div class="download-acao">
+            <a class="arquivo" href="/download/JrTechDesk-suporte.exe" data-arquivo="JrTechDesk-suporte.exe" download>
+              <span class="arquivo-acao">Baixar</span>
+              <span class="arquivo-nome">JrTechDesk-suporte.exe<span data-tamanho="JrTechDesk-suporte.exe" hidden></span></span>
+            </a>
+          </div>
+        </li>
+        <li class="download" id="linux">
+          <div class="download-sistema">
+            <h3>Ubuntu e Debian</h3>
+            <p class="requisito">Pacote .deb para 64 bits (amd64).</p>
+          </div>
+          <div class="download-acao">
+            <a class="arquivo" href="/download/jrtechdesk-suporte.deb" data-arquivo="jrtechdesk-suporte.deb" download>
+              <span class="arquivo-acao">Baixar</span>
+              <span class="arquivo-nome">jrtechdesk-suporte.deb<span data-tamanho="jrtechdesk-suporte.deb" hidden></span></span>
+            </a>
+            <pre class="comando" data-copiar><code>sudo apt install ./jrtechdesk-suporte.deb</code></pre>
+          </div>
+        </li>
+        <li class="download" id="arch">
+          <div class="download-sistema">
+            <h3>Arch Linux</h3>
+            <p class="requisito">Pacote .pkg.tar.zst para 64 bits; Arch atualizado.</p>
+          </div>
+          <div class="download-acao">
+            <a class="arquivo" href="/download/jrtechdesk-suporte.pkg.tar.zst" data-arquivo="jrtechdesk-suporte.pkg.tar.zst" download>
+              <span class="arquivo-acao">Baixar</span>
+              <span class="arquivo-nome">jrtechdesk-suporte.pkg.tar.zst<span data-tamanho="jrtechdesk-suporte.pkg.tar.zst" hidden></span></span>
+            </a>
+            <pre class="comando" data-copiar><code>sudo pacman -U ./jrtechdesk-suporte.pkg.tar.zst</code></pre>
+          </div>
+        </li>
+      </ul>
 
       <div class="verificacao">
         <div>
@@ -144,15 +140,55 @@
   <section class="largura privacidade" id="privacidade" aria-labelledby="titulo-privacidade">
     <h2 id="titulo-privacidade" class="titulo-secao">Privacidade</h2>
     <p class="intro">Vale para o JrTechDesk Suporte, o programa de quem recebe atendimento, e para esta página.</p>
-    <ul>
-      <li><strong>Esta página</strong> não usa cookies, ferramentas de rastreamento, anúncios nem formulários e não carrega nada de outros sites. O servidor que a entrega pode registrar o endereço IP e o horário dos acessos, para segurança e funcionamento.</li>
-      <li><strong>Para que serve o acesso:</strong> resolver, durante o atendimento, o problema que você pediu à Jrtech.</li>
-      <li><strong>O que o técnico pode fazer</strong> enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio do computador (e, conforme a configuração, do microfone) e usar a câmera; abrir um terminal; usar a conexão do seu computador para acessar serviços que ele alcança, na sua rede (roteador, impressoras, servidores) ou na internet; imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema. Ao conectar, o técnico também recebe o nome do computador, o usuário conectado, o sistema e a versão do programa.</li>
-      <li><strong>Quando o acesso acontece:</strong> na configuração padrão, o técnico entra com o ID e a senha, sem pedir outra confirmação, ou quando você clica em Aceitar numa janela de pedido de conexão. Só aceite um atendimento que você pediu. Depois que o técnico entra, o programa troca a senha, mas a senha nova aparece na sua tela, que ele está vendo. Se a conexão cair, a mesma sessão pode ser retomada por até 30 segundos desde a última comunicação, e quem viu a senha nova também pode iniciar outra conexão enquanto ela valer. Por isso, ao terminar, clique em Desconectar e feche o programa.</li>
-      <li><strong>No Linux</strong>, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga, inclusive na tela de login. Fechar a janela mantém o computador disponível para novas conexões, e a senha temporária vale até o programa trocá-la. O programa instalado também responde a buscas de outros computadores da rede local com o ID, o nome do computador, o usuário, o sistema e o endereço MAC. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</li>
-      <li><strong>Servidores da Jrtech:</strong> localizam o computador pelo ID e, quando preciso, retransmitem a conexão. O programa envia a eles o ID, um identificador do aparelho (UUID) e a chave pública do programa; eles também veem o endereço IP e podem registrar em log as tentativas de conexão. Hoje não há prazo definido para apagar esses registros. A chave configurada no programa serve para ele reconhecer os servidores da Jrtech; ela é pública e não limita quem pode pedir uma conexão. O que protege o acesso é a senha. Nas conexões pelo ID, o programa tenta uma sessão criptografada entre os dois computadores; se a criptografia não estiver disponível, ele avisa o técnico, que pode decidir continuar.</li>
-      <li><strong>Serviços de terceiros:</strong> o programa consulta o GitHub (empresa dos Estados Unidos) para saber se há versão nova, informando a versão instalada, e pode consultar servidores públicos de rede (Google, Cloudflare, Antisip e Nextcloud, que podem ficar fora do Brasil) para tentar uma conexão direta. Esses serviços recebem o endereço IP.</li>
-      <li><strong>Seus direitos (LGPD, art. 18):</strong> sem custo, você pode pedir à Jrtech a confirmação de que tratamos seus dados e o acesso a eles; a correção; a anonimização, o bloqueio ou a eliminação de dados desnecessários, excessivos ou tratados em desconformidade; a portabilidade; a informação sobre com quem eles são compartilhados; e, quando o tratamento depender do seu consentimento, a informação sobre a possibilidade de não consentir e suas consequências, a revogação e a eliminação desses dados. Você também pode se opor a um tratamento irregular. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</li>
+    <ul class="topicos" role="list">
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Esta página</span> <span class="topico-resumo">Sem cookies, rastreamento ou recursos de outros sites.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Esta página não usa cookies, ferramentas de rastreamento, anúncios nem formulários e não carrega nada de outros sites. O servidor que a entrega pode registrar o endereço IP e o horário dos acessos, para segurança e funcionamento.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Para que serve o acesso</span> <span class="topico-resumo">Só para resolver o que você pediu à Jrtech.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Para que serve o acesso: resolver, durante o atendimento, o problema que você pediu à Jrtech.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">O que o técnico pode fazer</span> <span class="topico-resumo">Acesso completo enquanto conectado: tela, arquivos, câmera, rede e mais.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>O que o técnico pode fazer enquanto estiver conectado: ver a sua tela; usar o mouse e o teclado; copiar, enviar, criar, renomear e apagar arquivos; usar a área de transferência; ouvir o áudio do computador (e, conforme a configuração, do microfone) e usar a câmera; abrir um terminal; usar a conexão do seu computador para acessar serviços que ele alcança, na sua rede (roteador, impressoras, servidores) ou na internet; imprimir documentos do seu computador na impressora dele; gravar a sessão no computador dele; reiniciar o computador; bloquear o seu mouse e teclado; e escurecer a sua tela, de modo que você não veja o que ele está fazendo. Algumas funções dependem do sistema. Ao conectar, o técnico também recebe o nome do computador, o usuário conectado, o sistema e a versão do programa.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Quando o acesso acontece</span> <span class="topico-resumo">Com o ID e a senha, o técnico entra sem pedir outra confirmação.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Quando o acesso acontece: na configuração padrão, o técnico entra com o ID e a senha, sem pedir outra confirmação, ou quando você clica em Aceitar numa janela de pedido de conexão. Só aceite um atendimento que você pediu. Depois que o técnico entra, o programa troca a senha, mas a senha nova aparece na sua tela, que ele está vendo. Se a conexão cair, a mesma sessão pode ser retomada por até 30 segundos desde a última comunicação, e quem viu a senha nova também pode iniciar outra conexão enquanto ela valer. Por isso, ao terminar, clique em Desconectar e feche o programa.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">No Linux</span> <span class="topico-resumo">O pacote instala um serviço que continua ativo depois de fechar a janela.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>No Linux, os pacotes instalam um serviço que roda como administrador, continua ativo depois de fechar a janela e volta a iniciar quando o computador liga, inclusive na tela de login. Fechar a janela mantém o computador disponível para novas conexões, e a senha temporária vale até o programa trocá-la. O programa instalado também responde a buscas de outros computadores da rede local com o ID, o nome do computador, o usuário, o sistema e o endereço MAC. Para desativá-lo, feche o programa e remova o pacote ou rode <code>sudo systemctl disable --now jrtechdesk</code>. Instalar uma versão nova reativa o serviço, e abrir o programa volta a permitir conexões.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Servidores da Jrtech</span> <span class="topico-resumo">Recebem o ID e o identificador do computador e veem o endereço IP.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Servidores da Jrtech: localizam o computador pelo ID e, quando preciso, retransmitem a conexão. O programa envia a eles o ID, um identificador do aparelho (UUID) e a chave pública do programa; eles também veem o endereço IP e podem registrar em log as tentativas de conexão. Hoje não há prazo definido para apagar esses registros. A chave configurada no programa serve para ele reconhecer os servidores da Jrtech; ela é pública e não limita quem pode pedir uma conexão. O que protege o acesso é a senha. Nas conexões pelo ID, o programa tenta uma sessão criptografada entre os dois computadores; se a criptografia não estiver disponível, ele avisa o técnico, que pode decidir continuar.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Serviços de terceiros</span> <span class="topico-resumo">O GitHub e servidores públicos de rede recebem o endereço IP.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Serviços de terceiros: o programa consulta o GitHub (empresa dos Estados Unidos) para saber se há versão nova, informando a versão instalada, e pode consultar servidores públicos de rede (Google, Cloudflare, Antisip e Nextcloud, que podem ficar fora do Brasil) para tentar uma conexão direta. Esses serviços recebem o endereço IP.</p>
+        </details>
+      </li>
+      <li>
+        <details class="topico">
+          <summary><span class="topico-titulo">Seus direitos (LGPD, art. 18)</span> <span class="topico-resumo">Você pode pedir acesso, correção ou eliminação dos seus dados, sem custo.</span><svg class="topico-seta" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+          <p>Seus direitos (LGPD, art. 18): sem custo, você pode pedir à Jrtech a confirmação de que tratamos seus dados e o acesso a eles; a correção; a anonimização, o bloqueio ou a eliminação de dados desnecessários, excessivos ou tratados em desconformidade; a portabilidade; a informação sobre com quem eles são compartilhados; e, quando o tratamento depender do seu consentimento, a informação sobre a possibilidade de não consentir e suas consequências, a revogação e a eliminação desses dados. Você também pode se opor a um tratamento irregular. Faça o pedido pelo suporte da Jrtech. Você também pode reclamar à ANPD.</p>
+        </details>
+      </li>
     </ul>
   </section>
 </main>
