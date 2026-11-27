@@ -357,7 +357,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: jrtechdesk-deb-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}
+          name: jrtechdesk-deb-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}-jr${{ inputs.versao-jr }}
           path: jrtechdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}.deb
           if-no-files-found: error
 
@@ -368,6 +368,8 @@ jobs:
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         run: |
           sed -i "s/x86_64/${{ matrix.job.arch }}/g" res/PKGBUILD
+          # A versao-jr vira o pkgrel: o pacman ordena jr4 < jr5 da mesma versão base.
+          sed -i "s/^pkgrel=.*/pkgrel=${{ inputs.versao-jr }}/" res/PKGBUILD
           if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
             sed -i "s/x86_64/aarch64/g" ./res/PKGBUILD
           fi
@@ -386,6 +388,6 @@ jobs:
         if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jrtechdesk-archlinux-x86_64-${{ inputs.modo }}-${{ inputs.tema }}
+          name: jrtechdesk-archlinux-x86_64-${{ inputs.modo }}-${{ inputs.tema }}-jr${{ inputs.versao-jr }}
           path: res/jrtechdesk-${{ env.VERSION }}*.zst
           if-no-files-found: error

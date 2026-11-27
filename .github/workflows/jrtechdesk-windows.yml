@@ -208,6 +208,13 @@ jobs:
           flutter doctor -v
           flutter precache --windows
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
+          # A release "main" do rustdesk/engine pode mudar: o motor só entra no .exe com este
+          # hash (arquivo de 2024-12-01). Se mudar, a build falha até alguém revisar e trocar.
+          $engineSha = (Get-FileHash -Path windows-x64-release.zip -Algorithm SHA256).Hash
+          if ($engineSha -ne "EC8CABF36EE4FF24C8D98DE25B00E70781EB03876265AEE84D0FE554A110036E") {
+            throw "windows-x64-release.zip sha256 $engineSha, esperado EC8CABF36EE4FF24C8D98DE25B00E70781EB03876265AEE84D0FE554A110036E"
+          }
+          Write-Host "JRTECH_ENGINE_SHA256: $engineSha"
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
           mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
 
@@ -415,7 +422,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jrtechdesk-installer-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}
+          name: jrtechdesk-installer-${{ matrix.job.arch }}-${{ inputs.modo }}-${{ inputs.tema }}-jr${{ inputs.versao-jr }}
           path: ./SignOutput/*.exe
           if-no-files-found: error
 

@@ -353,6 +353,15 @@ def get_features(args):
     return features
 
 
+def deb_control_version(version):
+    # A versao-jr (JRTECH_RELEASE) entra na versão do pacote: sem ela, jr4 e jr5 da mesma
+    # versão base seriam o mesmo pacote para o apt. 0 = build de teste, sem sufixo.
+    release = os.environ.get('JRTECH_RELEASE', '0')
+    if release.isdigit() and int(release) > 0:
+        return f'{version}-jr{int(release)}'
+    return version
+
+
 def generate_control_file(version):
     control_file_path = "../res/DEBIAN/control"
     system2('/bin/rm -rf %s' % control_file_path)
@@ -362,13 +371,13 @@ Section: net
 Priority: optional
 Version: %s
 Architecture: %s
-Maintainer: JR Tech <contato@rygtech.com.br>
+Maintainer: Jrtech
 Homepage: https://github.com/rxyslan/jrtechdesk
 Depends: libgtk-3-0t64 | libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2t64 | libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, gstreamer1.0-pipewire%s
 Recommends: libayatana-appindicator3-1
 Description: A remote control software.
 
-""" % (version, get_deb_arch(), get_deb_extra_depends())
+""" % (deb_control_version(version), get_deb_arch(), get_deb_extra_depends())
     file = open(control_file_path, "w")
     file.write(content)
     file.close()

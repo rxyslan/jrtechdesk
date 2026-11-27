@@ -9,6 +9,16 @@ case $1 in
 		
 		if [ "systemd" == "${INITSYS}" ]; then
 
+			# Numa atualização, lembra se o administrador desativou o serviço, para o
+			# postinst da versão nova não reativá-lo.
+			if [ "$1" = upgrade ]; then
+				if systemctl is-enabled --quiet jrtechdesk 2>/dev/null; then
+					rm -f /var/lib/jrtechdesk/servico-desativado
+				else
+					mkdir -p /var/lib/jrtechdesk
+					touch /var/lib/jrtechdesk/servico-desativado
+				fi
+			fi
 			systemctl stop jrtechdesk || true
 			systemctl disable jrtechdesk || true
 			rm /etc/systemd/system/jrtechdesk.service /usr/lib/systemd/system/jrtechdesk.service || true
