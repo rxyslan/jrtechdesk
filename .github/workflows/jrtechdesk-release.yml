@@ -57,6 +57,26 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # Notas da release: geradas no preparar e de novo no publicar (o texto do rascunho não é
+  # confiável). $VERSAO e $COMMIT são preenchidos com envsubst.
+  NOTAS_MODELO: |
+    JrTechDesk ${VERSAO} (commit ${COMMIT}).
+
+    | Arquivo | Para quem |
+    |---|---|
+    | `JrTechDesk-suporte.exe` | Cliente no Windows: abre direto, sem instalar |
+    | `JrTechDesk-completo.exe` | Técnico no Windows: instala; avisa quando há versão nova e o técnico decide quando atualizar |
+    | `jrtechdesk-completo.deb` / `.pkg.tar.zst` | Técnico no Linux (Debian/Ubuntu, Arch) |
+    | `jrtechdesk-suporte.deb` / `.pkg.tar.zst` | Cliente no Linux |
+
+    `PROVENIENCIA.json` registra o commit, as builds e o SHA-256 de cada arquivo.
+
+    Linux (Debian/Ubuntu): vindo da 1.5.3-jr4 ou anterior, a atualização reativa o serviço
+    `jrtechdesk` mesmo que você o tenha desativado. Se for o caso, rode de novo
+    `sudo systemctl disable --now jrtechdesk`. Quando a versão instalada já é esta ou mais
+    nova, a desativação é mantida.
+
+    Código-fonte (AGPL-3.0): este repositório, no commit acima.
   # Os seis pacotes de toda release, pelo nome exato.
   PACOTES: >-
     JrTechDesk-completo.exe JrTechDesk-suporte.exe
@@ -190,24 +210,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > notes.md <<EOF
-          JrTechDesk ${VERSAO} (commit ${COMMIT}).
-
-          | Arquivo | Para quem |
-          |---|---|
-          | \`JrTechDesk-suporte.exe\` | Cliente no Windows: abre direto, sem instalar |
-          | \`JrTechDesk-completo.exe\` | Técnico no Windows: instala; avisa quando há versão nova e o técnico decide quando atualizar |
-          | \`jrtechdesk-completo.deb\` / \`.pkg.tar.zst\` | Técnico no Linux (Debian/Ubuntu, Arch) |
-          | \`jrtechdesk-suporte.deb\` / \`.pkg.tar.zst\` | Cliente no Linux |
-
-          \`PROVENIENCIA.json\` registra o commit, as builds e o SHA-256 de cada arquivo.
-
-          Linux (Debian/Ubuntu): vindo da 1.5.3-jr4 ou anterior, a atualização reativa o serviço
-          \`jrtechdesk\` mesmo que você o tenha desativado. Se for o caso, rode de novo
-          \`sudo systemctl disable --now jrtechdesk\`. Das próximas atualizações em diante, a
-          desativação é mantida.
-          Código-fonte (AGPL-3.0): este repositório, no commit acima.
-          EOF
+          VERSAO="$VERSAO" COMMIT="$COMMIT" envsubst '$VERSAO $COMMIT' <<<"$NOTAS_MODELO" > notes.md
           gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
             --title "JrTechDesk ${VERSAO}" --notes-file notes.md out/*
           echo "Rascunho criado. Rode a etapa 'publicar' a partir da main." >> "$GITHUB_STEP_SUMMARY"
@@ -315,8 +318,13 @@ jobs:
           for nome in aprovados/*; do
             calculado="$(jq --arg n "${nome#aprovados/}" --arg h "$(sha256sum "$nome" | cut -d' ' -f1)" '. + {($n): $h}' <<<"$calculado")"
           done
-          jq -e --argjson c "$calculado" '.arquivos == $c' prov/PROVENIENCIA.json >/dev/null \
-            || { echo "::error::PROVENIENCIA.json não confere com os artefatos das builds"; exit 1; }
+          # O registro inteiro precisa ser exatamente o que o preparar gera para estas builds.
+          jq -e --arg tag "$TAG" --arg versao "$VERSAO" --arg commit "$commit" \
+            --arg wc "$wc_id" --arg ws "$ws_id" --arg lc "$lc_id" --arg ls "$ls_id" --argjson a "$calculado" \
+            '. == {tag: $tag, versao: $versao, commit: $commit,
+                   builds: {windows_completo: $wc, windows_suporte: $ws, linux_completo: $lc, linux_suporte: $ls},
+                   arquivos: $a}' prov/PROVENIENCIA.json >/dev/null \
+            || { echo "::error::PROVENIENCIA.json não é o registro destas builds"; exit 1; }
           echo "COMMIT=$commit" >> "$GITHUB_ENV"
 
       - name: Conferir o rascunho contra os artefatos aprovados
@@ -481,7 +489,11 @@ jobs:
           elif ! grep -q 'HTTP 404' erro.txt; then
             echo "::error::não deu para conferir a tag $TAG"; cat erro.txt; exit 1
           fi
-          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" -F draft=false -f make_latest=true > /dev/null
+          # Título e notas são regerados aqui (o texto do rascunho pode ter sido editado).
+          VERSAO="$VERSAO" COMMIT="$COMMIT" envsubst '$VERSAO $COMMIT' <<<"$NOTAS_MODELO" > notes.md
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -f name="JrTechDesk ${VERSAO}" -F body=@notes.md \
+            -F draft=false -F prerelease=false -f make_latest=true > /dev/null
           ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}")"
           alvo="$(jq -r .object.sha <<<"$ref")"
           if [ "$(jq -r .object.type <<<"$ref")" = tag ]; then
