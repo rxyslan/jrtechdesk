@@ -102,11 +102,24 @@ kbd {
 }
 .oficial-linha {
   display: flex; align-items: center; justify-content: center; gap: var(--e-3);
-  padding-top: var(--e-3); padding-bottom: var(--e-3);
+  padding-block: var(--e-1);
   text-align: center;
 }
 .oficial .icone { color: var(--forte); }
 .oficial strong { color: var(--texto); font-weight: 650; overflow-wrap: normal; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .oficial-janela { overflow: hidden; }
+  .oficial-linha {
+    width: max-content;
+    padding-inline: var(--e-3);
+    animation: aviso-rolando 24s linear infinite;
+  }
+  @keyframes aviso-rolando {
+    from { margin-left: 100%; }
+    to { margin-left: 0; transform: translateX(-100%); }
+  }
+}
 
 /* Topo */
 .topo { border-bottom: 1px solid var(--linha); }
@@ -397,8 +410,6 @@ kbd {
   .largura { padding-left: var(--e-4); padding-right: var(--e-4); }
   .hero { padding-top: var(--e-7); padding-bottom: var(--e-8); }
   .lead { font-size: 1.125rem; }
-  .oficial-linha { justify-content: flex-start; text-align: left; align-items: flex-start; }
-  .oficial .icone { margin-top: 1px; }
   .acoes, .botao { width: 100%; }
   .botao { justify-content: center; padding-right: var(--e-5); }
   .arquivo { display: flex; width: 100%; border-radius: var(--r-caixa); }
