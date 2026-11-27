@@ -234,6 +234,11 @@ pub async fn create_tcp_connection(
             bail!("evicted to make room for a newer unauthenticated connection");
         }
     }
+    // O Suporte não aceita sessão sem criptografia, mesmo que o técnico confirme. No WebRTC,
+    // is_secured() só fica verdadeiro depois de o handshake verificar a identidade.
+    if crate::common::jrtech_suporte() && !stream.is_secured() {
+        bail!("conexão sem criptografia recusada (JrTechDesk Suporte)");
+    }
 
     #[cfg(target_os = "macos")]
     {

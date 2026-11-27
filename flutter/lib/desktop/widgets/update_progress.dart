@@ -264,9 +264,11 @@ class UpdateProgressState extends State<UpdateProgress> {
   void updateMsgBox() {
     final releasePageUrl = widget.releasePageUrl;
     final downloadUrl = widget.downloadUrl;
+    // Sem contagem regressiva e com Cancelar: trocar o executável fecha o programa, e com
+    // ele um atendimento que esteja em andamento. Quem atualiza decide a hora.
     msgBox(
       gFFI.sessionId,
-      'custom-nocancel',
+      'custom',
       '{$appName} Update',
       '{$appName}-to-update-tip',
       '',
@@ -284,7 +286,6 @@ class UpdateProgressState extends State<UpdateProgress> {
           _showUpdateError(releasePageUrl, error.toString());
         }
       },
-      submitTimeout: 5,
     );
   }
 

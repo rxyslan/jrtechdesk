@@ -191,7 +191,11 @@ fn setup(
     let mut metadata_paths = reader.package_paths.clone();
     metadata_paths.extend(remove_dropped_package_files(&dir, &reader.package_paths));
     for file in reader.files.iter() {
-        file.write_to_file(&dir);
+        if let Err(e) = file.write_to_file(&dir) {
+            // Extração incompleta: não abre um app com arquivos misturados.
+            eprintln!("failed to extract into {}: {}", dir.display(), e);
+            return None;
+        }
     }
     write_meta(&dir, ts, &metadata_paths);
     #[cfg(windows)]
@@ -235,7 +239,7 @@ fn is_windows_7() -> bool {
     false
 }
 
-fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
+fn execute(path: PathBuf, args: Vec<String>, _ui: bool) -> Option<std::process::Child> {
     println!("executing {}", path.display());
     // setup env
     let exe = std::env::current_exe().unwrap_or_default();
@@ -269,7 +273,7 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
 
     #[cfg(windows)]
     if _ui {
-        match _child {
+        match &_child {
             Ok(child) => unsafe {
                 winapi::um::winuser::AllowSetForegroundWindow(child.id() as u32);
             },
@@ -278,6 +282,7 @@ fn execute(path: PathBuf, args: Vec<String>, _ui: bool) {
             }
         }
     }
+    _child.ok()
 }
 
 fn main() -> Result<(), String> {
@@ -306,32 +311,94 @@ fn main() -> Result<(), String> {
     }
 
     let mut ui = false;
-    let reader = BinaryReader::new()?;
+    // JrTechDesk: aberto pela versão antiga depois de ela trocar o .exe (ver
+    // src/platform/windows/verified_update.rs). Se ler o pacote, extrair ou abrir o app
+    // falhar, a cópia anterior (.old) volta para o lugar. Ela só é apagada se o app ainda
+    // estiver rodando depois de alguns segundos; se ele sair cedo, a cópia fica guardada.
+    #[cfg(windows)]
+    let updating = std::env::var_os(JRTECH_UPDATE_WAIT_PID_ENV_KEY).is_some();
+    #[cfg(windows)]
+    let silent = args.contains(&"--silent-install".to_owned());
+    let reader = match BinaryReader::new() {
+        Ok(reader) => reader,
+        Err(e) => {
+            #[cfg(windows)]
+            if updating && win::restore_previous_copy(true) {
+                std::process::exit(1);
+            } else if !silent {
+                win::show_error("O JrTechDesk não conseguiu ler o próprio pacote.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
+            }
+            return Err(e);
+        }
+    };
     // JrTechDesk: aberto pela versão antiga depois de se atualizar. Espera ela fechar
     // antes de extrair, senão os arquivos dela ainda estão em uso.
     #[cfg(windows)]
     if let Some(dir) = dirs::data_local_dir() {
         if !win::wait_for_previous_instance(&dir.join(app_dir_name(&reader.exe)).join(&reader.exe)) {
-            // Extrair agora abriria a versão antiga ou uma mistura das duas. O exe novo já
-            // está no lugar, então basta abrir de novo depois que a versão antiga fechar.
-            win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            // Extrair agora abriria a versão antiga ou uma mistura das duas. Põe a versão
+            // anterior de volta no lugar (sem abrir: ela ainda está rodando); a atualização
+            // pode ser feita de novo depois.
+            if win::restore_previous_copy(false) {
+                win::show_error("A versão anterior do JrTechDesk ainda estava aberta, então a atualização não foi feita e a versão anterior foi mantida.\n\nFeche o JrTechDesk e atualize de novo.");
+            } else {
+                win::show_error("A versão anterior do JrTechDesk ainda está aberta e a atualização não pôde terminar.\n\nFeche o JrTechDesk e abra este arquivo de novo.");
+            }
             std::process::exit(1);
         }
     }
-    if let Some(exe) = setup(
+    let setup_result = setup(
         reader,
         None,
         click_setup || args.contains(&"--silent-install".to_owned()),
         &args,
         &mut ui,
-    ) {
+    );
+    let extracted = setup_result.is_some();
+    let child = if let Some(exe) = setup_result {
         if click_setup {
             args = vec!["--install".to_owned()];
         } else if quick_support {
             args = vec!["--quick_support".to_owned()];
         }
-        execute(exe, args, ui);
+        execute(exe, args, ui)
+    } else {
+        None
+    };
+    #[cfg(windows)]
+    if updating {
+        match child {
+            // Ainda rodando depois de alguns segundos: a versão nova subiu.
+            Some(child) => {
+                if win::app_still_running(child) {
+                    win::remove_previous_copy();
+                }
+                // Saiu cedo (por qualquer motivo, inclusive outra janela do JrTechDesk aberta)
+                // ou não deu para saber: a cópia anterior fica guardada ao lado, sem restaurar.
+            }
+            None => {
+                if win::restore_previous_copy(true) {
+                    std::process::exit(1);
+                }
+                win::show_error("A atualização do JrTechDesk não pôde terminar e a versão anterior não foi encontrada.\n\nBaixe o JrTechDesk de novo pelo site oficial.");
+                std::process::exit(1);
+            }
+        }
+    } else if !extracted {
+        if !silent {
+            win::show_error("O JrTechDesk não conseguiu preparar os próprios arquivos.\n\nFeche o JrTechDesk que estiver aberto e abra este arquivo de novo.");
+        }
+        std::process::exit(1);
+    } else if let Some(child) = child {
+        // Abriu normalmente e continua rodando: sobras de uma atualização anterior podem sair.
+        // Só depois da mesma espera da atualização, para não perder a cópia anterior se esta
+        // versão cair logo ao abrir.
+        if win::has_previous_copy() && win::app_still_running(child) {
+            win::remove_previous_copy();
+        }
     }
+    #[cfg(not(windows))]
+    let _ = (extracted, child);
     Ok(())
 }
 
@@ -409,16 +476,86 @@ mod win {
                 std::thread::sleep(std::time::Duration::from_millis(200));
             }
         }
-        // Cópia antiga que a atualização deixou ao lado deste .exe.
-        if let Ok(exe) = std::env::current_exe() {
-            let mut old = exe.into_os_string();
-            old.push(".old");
-            let old = Path::new(&old);
-            if old.exists() {
-                if let Err(e) = fs::remove_file(old) {
-                    eprintln!("failed to remove {}: {}", old.display(), e);
+        true
+    }
+
+    fn sibling(exe: &Path, suffix: &str) -> std::path::PathBuf {
+        let mut path = exe.as_os_str().to_owned();
+        path.push(suffix);
+        path.into()
+    }
+
+    /// O app aberto pela versão nova continua rodando depois de alguns segundos? `false`
+    /// quando ele saiu (com qualquer código) ou quando não deu para consultar.
+    pub(super) fn app_still_running(mut child: std::process::Child) -> bool {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            match child.try_wait() {
+                Ok(None) if std::time::Instant::now() >= deadline => return true,
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(250)),
+                Ok(Some(status)) => {
+                    eprintln!("new version exited early: {}", status);
+                    return false;
+                }
+                Err(e) => {
+                    eprintln!("failed to check the new version: {}", e);
+                    return false;
                 }
             }
+        }
+    }
+
+    pub(super) fn has_previous_copy() -> bool {
+        std::env::current_exe().is_ok_and(|exe| {
+            sibling(&exe, ".old").exists() || sibling(&exe, ".falhou").exists()
+        })
+    }
+
+    /// A versão nova extraiu e abriu: a cópia anterior não é mais necessária.
+    pub(super) fn remove_previous_copy() {
+        if let Ok(exe) = std::env::current_exe() {
+            for leftover in [sibling(&exe, ".old"), sibling(&exe, ".falhou")] {
+                if leftover.exists() {
+                    if let Err(e) = fs::remove_file(&leftover) {
+                        eprintln!("failed to remove {}: {}", leftover.display(), e);
+                    }
+                }
+            }
+        }
+    }
+
+    /// A versão nova não conseguiu ler, extrair ou abrir: põe a anterior de volta no lugar
+    /// e, com `start`, avisa e a abre. Retorna `false` se não havia cópia anterior ou a troca
+    /// falhou.
+    pub(super) fn restore_previous_copy(start: bool) -> bool {
+        let Ok(exe) = std::env::current_exe() else {
+            return false;
+        };
+        let old = sibling(&exe, ".old");
+        if !old.is_file() {
+            return false;
+        }
+        // Um .exe em uso pode ser renomeado, não apagado.
+        let failed = sibling(&exe, ".falhou");
+        let _ = fs::remove_file(&failed);
+        if let Err(e) = fs::rename(&exe, &failed) {
+            eprintln!("failed to move {} aside: {}", exe.display(), e);
+            return false;
+        }
+        if let Err(e) = fs::rename(&old, &exe) {
+            eprintln!("failed to restore {}: {}", old.display(), e);
+            let _ = fs::rename(&failed, &exe);
+            return false;
+        }
+        if !start {
+            return true;
+        }
+        show_error("A atualização do JrTechDesk não pôde terminar. A versão anterior foi restaurada e será aberta agora.");
+        if let Err(e) = Command::new(&exe)
+            .env_remove(super::JRTECH_UPDATE_WAIT_PID_ENV_KEY)
+            .spawn()
+        {
+            eprintln!("failed to start the previous version: {}", e);
         }
         true
     }

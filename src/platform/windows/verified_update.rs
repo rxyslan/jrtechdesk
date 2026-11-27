@@ -82,44 +82,135 @@ pub fn update_portable_to_verified(
     let result = update_file
         .verify_size(expected_size)
         .and_then(|_| update_file.path_str().map(|p| p.to_owned()))
-        .and_then(|new_exe| replace_portable_exe(&target, Path::new(&new_exe)));
+        .and_then(|new_exe| {
+            replace_portable_exe(&target, Path::new(&new_exe), expected_size, expected_sha256)
+        });
     update_file.cleanup();
-    result?;
+    let old = result?;
 
-    std::process::Command::new(&target)
+    // O packer novo apaga o .old só depois de extrair e abrir; se falhar, ele o restaura.
+    if let Err(e) = std::process::Command::new(&target)
         .env(JRTECH_UPDATE_WAIT_PID_ENV_KEY, std::process::id().to_string())
         .spawn()
-        .map_err(|e| anyhow!("falha ao abrir a versão nova {}: {}", target.display(), e))?;
+    {
+        restore_portable_exe(&target, &old);
+        bail!("falha ao abrir a versão nova {}: {}", target.display(), e);
+    }
     Ok(())
 }
 
-fn replace_portable_exe(target: &Path, new_exe: &Path) -> ResultType<()> {
-    let mut old = target.as_os_str().to_owned();
-    old.push(".old");
-    let old = PathBuf::from(old);
-    if old.exists() {
-        std::fs::remove_file(&old)
-            .map_err(|e| anyhow!("falha ao apagar a cópia antiga {}: {}", old.display(), e))?;
+fn portable_sibling(target: &Path, suffix: &str) -> PathBuf {
+    let mut path = target.as_os_str().to_owned();
+    path.push(suffix);
+    PathBuf::from(path)
+}
+
+/// Grava a versão nova ao lado (`.new`), confere o tamanho e só então troca com
+/// `ReplaceFileW`, que põe a nova no lugar e guarda a anterior (`.old`) numa operação só
+/// do sistema de arquivos. Retorna onde ficou a versão anterior.
+fn replace_portable_exe(
+    target: &Path,
+    new_exe: &Path,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> ResultType<PathBuf> {
+    let staged = portable_sibling(target, ".new");
+    let old = portable_sibling(target, ".old");
+    if staged.exists() {
+        std::fs::remove_file(&staged)
+            .map_err(|e| anyhow!("falha ao apagar {}: {}", staged.display(), e))?;
     }
-    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para renomear.
-    std::fs::rename(target, &old)
-        .map_err(|e| anyhow!("falha ao trocar {}: {}", target.display(), e))?;
-    if let Err(e) = std::fs::copy(new_exe, target) {
-        if target.exists() {
-            allow_err!(std::fs::remove_file(target));
-        }
-        if let Err(rollback) = std::fs::rename(&old, target) {
-            log::warn!("Falha ao restaurar {}: {}", target.display(), rollback);
+    match std::fs::copy(new_exe, &staged) {
+        Ok(copied) if copied == expected_size => {}
+        Ok(copied) => {
+            allow_err!(std::fs::remove_file(&staged));
             bail!(
-                "falha ao gravar a versão nova em {}: {}; a versão anterior ficou em {}",
-                target.display(),
-                e,
-                old.display()
+                "a versão nova ficou com {} bytes em {}, esperado {}",
+                copied,
+                staged.display(),
+                expected_size
             );
         }
-        bail!("falha ao gravar a versão nova em {}: {}", target.display(), e);
+        Err(e) => {
+            allow_err!(std::fs::remove_file(&staged));
+            bail!("falha ao gravar a versão nova em {}: {}", staged.display(), e);
+        }
     }
-    Ok(())
+    // A cópia ao lado é a que vai ser executada: grava no disco e confere o SHA-256 de novo,
+    // com o arquivo aberto sem permitir escrita de outros processos.
+    if let Err(e) = sync_and_verify_staged(&staged, expected_sha256) {
+        allow_err!(std::fs::remove_file(&staged));
+        return Err(e);
+    }
+    if old.exists() {
+        if let Err(e) = std::fs::remove_file(&old) {
+            allow_err!(std::fs::remove_file(&staged));
+            bail!("falha ao apagar a cópia antiga {}: {}", old.display(), e);
+        }
+    }
+    // O .exe do packer não está em uso (ele só extrai e abre o app), então dá para trocar.
+    if let Err(e) = swap_portable_exe(target, &staged, &old) {
+        // Conforme o ponto em que falhou, a anterior pode ter ficado só como .old.
+        if !target.exists() && old.exists() {
+            restore_portable_exe(target, &old);
+        }
+        allow_err!(std::fs::remove_file(&staged));
+        bail!("falha ao pôr a versão nova em {}: {}", target.display(), e);
+    }
+    Ok(old)
+}
+
+fn sync_and_verify_staged(staged: &Path, expected_sha256: &str) -> ResultType<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows::Win32::Storage::FileSystem::FILE_SHARE_READ;
+
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(staged)
+        .and_then(|file| file.sync_all())
+        .map_err(|e| anyhow!("falha ao gravar {} no disco: {}", staged.display(), e))?;
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        // Sem FILE_SHARE_WRITE nem FILE_SHARE_DELETE: ninguém altera nem troca o arquivo
+        // enquanto o hash é calculado. Fechado antes do ReplaceFileW.
+        .share_mode(FILE_SHARE_READ.0)
+        .open(staged)
+        .map_err(|e| anyhow!("falha ao abrir {}: {}", staged.display(), e))?;
+    crate::update_hash::verify_sha256_reader(&mut file, expected_sha256)
+        .map_err(|e| anyhow!("a cópia {} não confere: {:?}", staged.display(), e))
+}
+
+fn swap_portable_exe(target: &Path, staged: &Path, old: &Path) -> ResultType<()> {
+    use windows::{
+        core::HSTRING,
+        Win32::Storage::FileSystem::{ReplaceFileW, REPLACE_FILE_FLAGS},
+    };
+
+    unsafe {
+        ReplaceFileW(
+            &HSTRING::from(target),
+            &HSTRING::from(staged),
+            &HSTRING::from(old),
+            REPLACE_FILE_FLAGS(0),
+            None,
+            None,
+        )
+    }
+    .map_err(|err| anyhow!("{}", err))
+}
+
+fn restore_portable_exe(target: &Path, old: &Path) {
+    if target.exists() {
+        allow_err!(std::fs::remove_file(target));
+    }
+    if let Err(e) = std::fs::rename(old, target) {
+        log::warn!(
+            "Falha ao restaurar {} a partir de {}: {}",
+            target.display(),
+            old.display(),
+            e
+        );
+    }
 }
 
 fn launch_verified_update(

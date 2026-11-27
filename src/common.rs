@@ -1198,8 +1198,24 @@ pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<St
 }
 
 fn clear_software_update_url() {
-    let mut update_url = SOFTWARE_UPDATE_URL.lock().unwrap();
-    *update_url = String::new();
+    let had_update = {
+        let mut update_url = SOFTWARE_UPDATE_URL.lock().unwrap();
+        let had_update = !update_url.is_empty();
+        *update_url = String::new();
+        had_update
+    };
+    // A release que o aviso anunciava saiu (ou deixou de ser mais nova): some com o aviso.
+    #[cfg(feature = "flutter")]
+    if had_update {
+        let mut m = HashMap::new();
+        m.insert("name", "check_software_update_finish");
+        m.insert("url", "");
+        if let Ok(data) = serde_json::to_string(&m) {
+            let _ = crate::flutter::push_global_event(crate::flutter::APP_TYPE_MAIN, data);
+        }
+    }
+    #[cfg(not(feature = "flutter"))]
+    let _ = had_update;
 }
 
 // Resposta de https://api.github.com/repos/<dono>/<repo>/releases/latest.
@@ -2633,6 +2649,10 @@ fn apply_jrtech_defaults() {
         // Técnico com todas as permissões; vence qualquer access-mode salvo.
         overrides["access-mode"] = "full".into();
         overrides["register-device"] = "N".into();
+        // Sem acesso direto por IP (pula o handshake criptografado) nem resposta à busca na
+        // rede local (ID, MAC, nome e usuário), mesmo com uma configuração antiga salva.
+        overrides["direct-server"] = "N".into();
+        overrides["enable-lan-discovery"] = "N".into();
     }
     read_custom_client_advanced_settings(
         overrides,
