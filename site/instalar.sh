@@ -41,8 +41,9 @@ trap 'if [[ -z "$manter_novo" ]]; then rm -rf -- "$novo"; fi
 # --- Preparação: nada do que está no ar muda aqui. ---
 limpar_preparo=1
 rm -f -- "$BASE/www.novo"
-mkdir -p "$BASE/$www_nova/img"
+mkdir -p "$BASE/$www_nova/img" "$BASE/$www_nova/fontes"
 install -m 0644 www/img/*.png "$BASE/$www_nova/img/"
+install -m 0644 www/fontes/inter-latin.woff2 www/fontes/OFL.txt "$BASE/$www_nova/fontes/"
 install -m 0644 www/estilo.css www/versao.js www/copiar.js www/index.html "$BASE/$www_nova/"
 install -m 0644 Caddyfile "$novo/"
 install -m 0755 sincronizar.sh "$novo/"

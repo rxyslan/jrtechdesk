@@ -27,7 +27,7 @@ fetch('/download/versao.json', { cache: 'no-cache' })
     for (const span of document.querySelectorAll('[data-tamanho]')) {
       const bytes = v?.arquivos?.[span.dataset.tamanho]?.tamanho;
       if (Number.isFinite(bytes) && bytes >= 1000000) {
-        span.textContent = ` · ${Math.round(bytes / 1000000)} MB`;
+        span.textContent = `${Math.round(bytes / 1000000)} MB`;
         span.hidden = false;
       }
     }
@@ -35,7 +35,7 @@ fetch('/download/versao.json', { cache: 'no-cache' })
     for (const span of tagOk ? document.querySelectorAll('[data-sha256]') : []) {
       const hash = v?.arquivos?.[span.dataset.sha256]?.sha256;
       if (typeof hash === 'string' && /^[0-9a-f]{64}$/.test(hash)) {
-        span.textContent = ` · SHA-256 ${hash.slice(0, 12)}…`;
+        span.textContent = `SHA-256 ${hash.slice(0, 12)}…`;
         span.hidden = false;
       }
     }
