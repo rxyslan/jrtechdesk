@@ -162,7 +162,7 @@ fn replace_portable_exe(
 
 fn sync_and_verify_staged(staged: &Path, expected_sha256: &str) -> ResultType<()> {
     use std::os::windows::fs::OpenOptionsExt;
-    use windows::Win32::Storage::FileSystem::{FILE_SHARE_DELETE, FILE_SHARE_READ};
+    use windows::Win32::Storage::FileSystem::FILE_SHARE_READ;
 
     std::fs::OpenOptions::new()
         .write(true)
@@ -171,7 +171,9 @@ fn sync_and_verify_staged(staged: &Path, expected_sha256: &str) -> ResultType<()
         .map_err(|e| anyhow!("falha ao gravar {} no disco: {}", staged.display(), e))?;
     let mut file = std::fs::OpenOptions::new()
         .read(true)
-        .share_mode(FILE_SHARE_READ.0 | FILE_SHARE_DELETE.0)
+        // Sem FILE_SHARE_WRITE nem FILE_SHARE_DELETE: ninguém altera nem troca o arquivo
+        // enquanto o hash é calculado. Fechado antes do ReplaceFileW.
+        .share_mode(FILE_SHARE_READ.0)
         .open(staged)
         .map_err(|e| anyhow!("falha ao abrir {}: {}", staged.display(), e))?;
     crate::update_hash::verify_sha256_reader(&mut file, expected_sha256)

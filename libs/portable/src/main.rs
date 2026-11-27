@@ -389,9 +389,13 @@ fn main() -> Result<(), String> {
             win::show_error("O JrTechDesk não conseguiu preparar os próprios arquivos.\n\nFeche o JrTechDesk que estiver aberto e abra este arquivo de novo.");
         }
         std::process::exit(1);
-    } else if child.is_some() {
-        // Abriu normalmente com esta versão: sobras de uma atualização anterior podem sair.
-        win::remove_previous_copy();
+    } else if let Some(child) = child {
+        // Abriu normalmente e continua rodando: sobras de uma atualização anterior podem sair.
+        // Só depois da mesma espera da atualização, para não perder a cópia anterior se esta
+        // versão cair logo ao abrir.
+        if win::has_previous_copy() && win::app_still_running(child) {
+            win::remove_previous_copy();
+        }
     }
     #[cfg(not(windows))]
     let _ = (extracted, child);
@@ -499,6 +503,12 @@ mod win {
                 }
             }
         }
+    }
+
+    pub(super) fn has_previous_copy() -> bool {
+        std::env::current_exe().is_ok_and(|exe| {
+            sibling(&exe, ".old").exists() || sibling(&exe, ".falhou").exists()
+        })
     }
 
     /// A versão nova extraiu e abriu: a cópia anterior não é mais necessária.
